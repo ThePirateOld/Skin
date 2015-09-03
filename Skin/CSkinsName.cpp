@@ -1,12 +1,12 @@
-#include "CSkinsName.h
+#include "CSkinsName.h"
 
-SPECIAL_ACTOR SpecialActor[SPECIAL_ACTOR_MAX] =
+SSpecialModel sSpecialModel [ SPECIAL_MODEL_MAX ] = 
 {
 	{ "ANDRE", "Andre" }, { "BBTHIN", "Big Bear thin" }, { "BB", "Big Bear fat" },
 	{ "CAT", "Catalina" }, { "CESAR", "Cesar" }, { "COPGRL1", "The naked girl 1" },
-	{ "COPGRL2", "Girl 1" }, { "COPGRL3", "Girl 1" }, { "CLAUDE", "Claude from GTA3" },
+	{ "COPGRL2", "Girl 1" }, { "COPGRL3", "Girl 1" }, { "CLAUDE", "Claude Speed" },
 	{ "CROGRL1", "The naked girl 2" }, { "CROGRL2", "Girl 2" }, { "DWAYNE", "Dwayne" },
-	{ "EMMET", "Emmet" }, { "FORELLI", "Forelli" }, { "JANITOR", "mechanic" },
+	{ "EMMET", "Emmet" }, { "FORELLI", "Forelli" }, { "JANITOR", "Mechanic" },
 	{ "JETHRO", "Jethro" }, { "JIZZY", "Jizzy" }, { "HERN", "Hernandes" },
 	{ "GANGRL1", "The naked girl 3" }, { "GANGRL2", "Girl 3" }, { "GANGRL3", "Girl 3" },
 	{ "GUNGRL1", "The naked girl 4" }, { "GUNGRL2", "Girl 4" }, { "GUNGRL3", "Girl 4" },
@@ -21,7 +21,7 @@ SPECIAL_ACTOR SpecialActor[SPECIAL_ACTOR_MAX] =
 	{ "TRUTH", "The truth" }, { "WUZIMU", "Wu Zi" }, { "ZERO", "Zero" }
 };
 
-PED_MODEL SkinNormal[SKIN_NORMAL_MAX] =
+SPedModel sPedModel [ PED_MODEL_MAX ] = 
 {
 	{ "NULL", 0 }, { "MALE01", 7 }, { "BFORI", 9 }, { "BFOST", 10 }, { "VBFYCRP", 11 }, { "BFYRI", 12 },
 	{ "BFYST", 13 }, { "BMORI", 14 }, { "BMOST", 15 }, { "BMYAP", 16 }, { "BMYBU", 17 }, { "BMYBE", 18 },

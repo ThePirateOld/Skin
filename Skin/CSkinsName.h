@@ -1,20 +1,20 @@
 #pragma once
 #include <vector>
 
-#define SPECIAL_ACTOR_MAX 51
-#define SKIN_NORMAL_MAX 251
+#define SPECIAL_MODEL_MAX 51
+#define PED_MODEL_MAX 251
 
-struct PED_MODEL
+struct SPedModel
 {
-	char szPedName[20];
+	char szPedName [ 8 ];
 	unsigned int uiPedID;
 };
 
-struct SPECIAL_ACTOR
+struct SSpecialModel
 {
-	char szModel[24];
-	char szName[64];
+	char szModel [ 8 ];
+	char szName [ 30 ];
 };
 
-extern SPECIAL_ACTOR SpecialActor[SPECIAL_ACTOR_MAX];
-extern PED_MODEL SkinNormal[SKIN_NORMAL_MAX];
+extern SSpecialModel sSpecialModel [ SPECIAL_MODEL_MAX ];
+extern SPedModel sPedModel [ PED_MODEL_MAX ];
