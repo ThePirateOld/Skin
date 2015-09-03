@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CGraphics.h"
-#include "CKey.h"
 
 class CMenu;
 

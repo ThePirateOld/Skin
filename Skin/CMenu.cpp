@@ -22,8 +22,7 @@ CMenuManager::CMenuManager ( void ) :
 	m_pDevice ( NULL ),
 	m_pFont ( NULL ),
 	m_pRender ( NULL )
-{
-}
+{}
 
 CMenuManager::~CMenuManager ( void )
 {
