@@ -159,6 +159,7 @@
   <ItemGroup>
     <ClInclude Include="CGraphics.h" />
     <ClInclude Include="CMenu.h" />
+    <ClInclude Include="CSkinsName.h" />
     <ClInclude Include="D3D9Headers\d3d9.h" />
     <ClInclude Include="D3D9Headers\d3d9caps.h" />
     <ClInclude Include="D3D9Headers\d3d9types.h" />
@@ -179,6 +180,7 @@
   <ItemGroup>
     <ClCompile Include="CGraphics.cpp" />
     <ClCompile Include="CMenu.cpp" />
+    <ClCompile Include="CSkinsName.cpp" />
     <ClCompile Include="dllmain.cpp">
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</CompileAsManaged>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
