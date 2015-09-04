@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CGraphics.h"
+#include "CKeyBoard.h"
 
 class CMenu;
 
@@ -10,7 +11,7 @@ struct SMenuAddon
 {
 	int ID = -1;
 	CMenu *pMenu = NULL;
-	bool bDraw;
+	bool bDraw=false;
 };
 
 class CMenuManager
@@ -121,8 +122,10 @@ public:
 	void AddSubMenu ( CMenu *pMenu, int iRow );
 	void RemoveSubMenu ( CMenu* );
 	void RemoveAllSubMenus ( void );
-private:
 
+	
+private:
+	KeyInput m_KeyInput;
 	struct SColumn
 	{
 		struct SColumnItem

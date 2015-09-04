@@ -81,6 +81,12 @@
     <ClInclude Include="Clothes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SKin.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CKeyBoard.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -102,6 +108,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Clothes.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CKeyBoard.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

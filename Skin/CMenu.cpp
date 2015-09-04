@@ -8,10 +8,10 @@ struct SSubMenuAddon
 		bool bAdded;
 	};
 
-	int iCount = 0;
+	int iCount=0;
 
-	bool bPrevMenu;
-	bool bNextMenu;
+	bool bRet;
+	bool bNext;
 
 	std::map<CMenu*, SInvokeMenu> InvokeMenu;
 	std::map<CMenu*, std::vector<SMenuAddon>> Addon;
@@ -34,7 +34,7 @@ CMenuManager::~CMenuManager ( void )
 
 HRESULT CMenuManager::InitializeDeviceObjs ( IDirect3DDevice9 *pDevice )
 {
-	m_pFont = new CD3DFont ( "Arial", 10, FCR_BOLD );
+	m_pFont = new CD3DFont ( "Arial", 10 );
 
 	if ( !m_pFont )
 		return E_FAIL;
@@ -169,7 +169,7 @@ void CMenuManager::OnResetDevice ( void )
 		m_pRender->Initialize ( m_pDevice );
 }
 
-CMenu::CMenu ( void ) : m_iPageSize ( 10 ), m_iMaxItems ( 255 )
+CMenu::CMenu ( void ) : m_iPageSize ( 19 ), m_iMaxItems ( 255 )
 {
 	ZeroMemory ( &m_vPos, sizeof ( POINT ) );
 	ZeroMemory ( &m_sColor, sizeof ( SMenuColor ) );
@@ -308,10 +308,10 @@ void CMenu::Draw ( void )
 			pRender->D3DBox ( ( float ) m_vPos.x, float ( m_vPos.y + m_iTitleScale ) + float ( m_iTextSpace * float ( m_iCurrentRow - m_iNexSpace ) ), m_bShowScrollbar && m_RowStatus.size () > m_iPageSize ? m_vSize.x - 15.f : m_vSize.x, m_iTextSpace, 0.f, m_sColor.d3dSelecItemBar );
 		}
 
+		int iIncPosX = m_vPos.x;
 		for ( size_t i = 0; i < m_ColumnAddon.size (); i++ )
 		{
-			int iIncPosX = m_vPos.x,
-				iIncPosY = m_vPos.y + m_iTitleScale;
+			int iIncPosY = m_vPos.y + m_iTitleScale;
 
 			if ( m_ColumnAddon [ i ] )
 			{
@@ -360,14 +360,16 @@ void CMenu::Draw ( void )
 
 		for ( size_t i = 0; i < SubMenu.Addon [ this ].size (); i++ )
 		{
-			if ( GetAsyncKeyState ( VK_SPACE ) )
-			{
-				if ( SubMenu.bNextMenu )
-				{
-					SubMenu.bNextMenu = false;
 
-					if ( SubMenu.Addon [ this ] [ i ].ID == m_iCurrentRow )
+
+			if ( SubMenu.Addon [ this ] [ i ].ID == m_iCurrentRow )
+			{
+				if ( GetAsyncKeyState ( VK_SPACE ) )
+				{
+					if ( SubMenu.bNext )
 					{
+						SubMenu.bNext  = false;
+
 						SubMenu.Addon [ this ] [ i ].pMenu->SetSelectedRow ( 0 );
 
 						SubMenu.InvokeMenu [ this ].bStat = false;
@@ -378,25 +380,26 @@ void CMenu::Draw ( void )
 						break;
 					}
 				}
+				else
+				{
+					SubMenu.bNext  = true;
+				}
 			}
-			else
-			{
-				SubMenu.bNextMenu = true;
-			}
+
 		}
 	}
 	else
 	{
-		for ( size_t i = 0; i<SubMenu.Addon [ this ].size (); i++ )
-		{	
-			if ( GetAsyncKeyState ( VK_RETURN ) )
-			{
-				if ( SubMenu.bPrevMenu )
-				{
-					SubMenu.bPrevMenu = false;
+		for ( size_t i = 0; i < SubMenu.Addon [ this ].size (); i++ )
+		{
 
-					if ( SubMenu.NextMenu [ SubMenu.iCount ] == SubMenu.Addon [ this ] [ i ].pMenu )
+			if ( SubMenu.NextMenu [ SubMenu.iCount ] == SubMenu.Addon [ this ] [ i ].pMenu )
+			{
+				if ( GetAsyncKeyState ( VK_RETURN ) )
+				{
+					if ( SubMenu.bRet )
 					{
+						SubMenu.bRet = false;
 						SubMenu.iCount--;
 
 						SubMenu.InvokeMenu [ this ].bStat = true;
@@ -404,11 +407,12 @@ void CMenu::Draw ( void )
 						break;
 					}
 				}
+				else
+				{
+					SubMenu.bRet = true;
+				}
 			}
-			else
-			{
-				SubMenu.bPrevMenu = true;
-			}
+
 		}
 	}
 }
@@ -501,11 +505,7 @@ void CMenu::AddColumn ( int iColumnID, const char *szName, int iWidth, D3DCOLOR 
 
 void CMenu::AddColumnItem ( int iColumnID, D3DCOLOR d3dColor, const char *szItem, ... )
 {
-	if ( iColumnID < -1 ||
-		 iColumnID > m_ColumnAddon.size () )
-	{
-		return;
-	}
+	
 
 	if ( szItem && m_ColumnAddon [ iColumnID ] )
 	{
@@ -532,12 +532,7 @@ void CMenu::AddColumnItem ( int iColumnID, D3DCOLOR d3dColor, const char *szItem
 
 void CMenu::RemoveItemByName ( int iColumnID, const char *szItem )
 {
-	if ( iColumnID < -1 || 
-		 iColumnID > m_ColumnAddon.size () )
-	{
-		return;
-	}
-
+	
 	if ( m_ColumnAddon [ iColumnID ] )
 	{
 		for ( size_t i = 0; i < m_ColumnAddon [ iColumnID ]->ItemAddon.sItemName.size (); i++ )
@@ -553,8 +548,7 @@ void CMenu::RemoveItemByName ( int iColumnID, const char *szItem )
 
 void CMenu::RemoveItem ( int iColumnID, int iRow )
 {
-	if ( iColumnID > -1 && 
-		 iColumnID < m_ColumnAddon.size () && 
+	if (  
 		 iRow > -1 && 
 		 iRow < m_ColumnAddon [ iColumnID ]->ItemAddon.sItemName.size () )
 	{
@@ -577,11 +571,7 @@ void CMenu::RemoveColumnByName ( const char *szName )
 
 void CMenu::RemoveColumn ( int iColumnID )
 {
-	if ( iColumnID < -1 || 
-		 iColumnID > m_ColumnAddon.size () )
-	{
-		return;
-	}
+	
 
 	ClearItemsFromColumn ( iColumnID );
 	SAFE_DELETE ( m_ColumnAddon [ iColumnID ] );
@@ -591,11 +581,7 @@ void CMenu::RemoveColumn ( int iColumnID )
 
 void CMenu::ClearItemsFromColumn ( int iColumnID )
 {
-	if ( iColumnID < -1 || 
-		 iColumnID > m_ColumnAddon.size () )
-	{
-		return;
-	}
+	
 
 	if ( m_ColumnAddon [ iColumnID ] )
 	{
@@ -618,11 +604,6 @@ void CMenu::ClearAllColumns ( void )
 
 char *CMenu::GetSelectedRowByName ( int iColumnID )
 {
-	if ( iColumnID < -1 || 
-		 iColumnID > m_ColumnAddon.size () )
-	{
-		return NULL;
-	}
 
 	if ( m_ColumnAddon [ iColumnID ] )
 	{
@@ -634,11 +615,7 @@ char *CMenu::GetSelectedRowByName ( int iColumnID )
 
 void CMenu::SetSelectedRowByName ( int iColumnID, const char *szItem )
 {
-	if ( iColumnID < -1 || 
-		 iColumnID > m_ColumnAddon.size () )
-	{
-		return;
-	}
+	
 
 	if ( m_ColumnAddon [ iColumnID ] )
 	{
@@ -661,22 +638,20 @@ void CMenu::SetSelectedRow ( int iRow )
 
 	if ( GetNumOfItems () > iRow )
 	{
+		m_iNexSpace = 0;
+
 		if ( iRow > m_iPageSize )
 		{
 			m_iNexSpace = iRow - m_iPageSize + 1;
 		}
-
+	
 		m_iCurrentRow = iRow;
 	}
 }
 
 void CMenu::SetEnabledRowByName ( int iColumnID, const char *szItem, bool bActivated )
 {
-	if ( iColumnID < -1 || 
-		 iColumnID > m_ColumnAddon.size () )
-	{
-		return;
-	}
+	
 
 	if ( m_ColumnAddon [ iColumnID ] )
 	{
@@ -871,8 +846,8 @@ D3DXVECTOR2 CMenu::GetSize ( void )
 		m_iTextSpace * m_iPageSize :
 		m_iTextSpace * size;
 
-	return D3DXVECTOR2 ( m_iHeight * m_iTextSpace > height ? m_iHeight * m_iTextSpace : height, 
-						 iAddWidth );
+	return D3DXVECTOR2 ( iAddWidth,
+						 m_iHeight * m_iTextSpace > height ? m_iHeight * m_iTextSpace : height );
 }
 
 size_t CMenu::GetNumOfItems ( void )
@@ -897,9 +872,6 @@ size_t CMenu::GetNumOfItems ( void )
 
 void CMenu::HandleMessage ( UINT uMsg, WPARAM wParam, LPARAM lParam )
 {
-	if ( !SubMenu.InvokeMenu [ this ].bStat || m_bLockControls )
-		return;
-
 	switch ( uMsg )
 	{
 		case WM_KEYDOWN:
@@ -909,6 +881,10 @@ void CMenu::HandleMessage ( UINT uMsg, WPARAM wParam, LPARAM lParam )
 				case VK_UP:
 				case 0x57:
 				{
+					if ( !SubMenu.InvokeMenu [ this ].bStat || 
+						 m_bLockControls )
+						return;
+
 					if ( m_iCountItemsEnabled < 2 )
 						break;
 
@@ -920,6 +896,10 @@ void CMenu::HandleMessage ( UINT uMsg, WPARAM wParam, LPARAM lParam )
 				case VK_DOWN:
 				case 0x53:
 				{
+					if ( !SubMenu.InvokeMenu [ this ].bStat || 
+						 m_bLockControls )
+						return;
+
 					if ( m_iCountItemsEnabled < 2 )
 						break;
 
@@ -932,7 +912,8 @@ void CMenu::HandleMessage ( UINT uMsg, WPARAM wParam, LPARAM lParam )
 			}
 			break;
 		}
-	}
+
+	} 
 }
 
 void CMenu::_UpdateItemsUp ( void )

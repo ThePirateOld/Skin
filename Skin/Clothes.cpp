@@ -2,12 +2,13 @@
 
 SPlayerClothingType sClothesNames [ PLAYER_CLOTHING_SLOTS ] =
 {
-	{ "Torso" }, { "Legs" }, { "Shoes" }, { "Hats" },
-	{ "Chains" }, { "Whatches" }, { "Glasses" }, { "Hairstyle" },
-	{ "Special" }, { "Remove items" },
+	{ "Torso" }, { "haircuts" }, { "Legs " }, { "Shoes" }, { "Lower left arm" },
+	{ "Upper left arm" }, { "Upper right arm" },{ "Lower right arm" }, { "Back top" },
+	{ "Left chest" }, { "Right chest" }, { "Stomach" }, { "Lower back" },
+	{ "Necklace" }, { "Watch" }, { "Glasses" }, { "Hats" }, { "Special clothes" }
 };
 
-SPlayerClothing sTorsoClothing [ TORSO_CLOTHING_MAX ] =
+static SPlayerClothing sTorsoClothing [ TORSO_CLOTHING_MAX ] =
 {
 	{ "player_torso", "torso", 0, "Torso" }, { "vestblack", "vest", 0, "Black Tank" },
 	{ "vest", "vest", 0, "White Tank" }, { "tshirt2horiz", "tshirt2", 0, "Striped T - Shirt" },
@@ -45,7 +46,7 @@ SPlayerClothing sTorsoClothing [ TORSO_CLOTHING_MAX ] =
 	{ "suit1gang", "suit1", 0, "Green Jacket" }, { "letter", "sleevt", 0, "Letterman Top" }
 };
 
-SPlayerClothing sHairClothing [ HAIR_CLOTHING_MAX ] =
+static SPlayerClothing sHairClothing [ HAIR_CLOTHING_MAX ] =
 {
 	{ "afro", "afro", 1, "Afro" }, { "afrobeard", "afro", 1, "Afro & Beard" },
 	{ "afroblond", "afro", 1, "Blonde Afro" }, { "afrogoatee", "afro", 1, "Afro & Goatee" },
@@ -66,7 +67,7 @@ SPlayerClothing sHairClothing [ HAIR_CLOTHING_MAX ] =
 	{ "wedge", "wedge", 1, "Wedge" }
 };
 
-SPlayerClothing sLegsClothing [ LEGS_CLOTHING_MAX ] =
+static SPlayerClothing sLegsClothing [ LEGS_CLOTHING_MAX ] =
 {
 	{ "player_legs", "legs", 2, "Legs" }, { "worktrcamogrn", "worktr", 2, "Woodland Camo" },
 	{ "worktrcamogry", "worktr", 2, "Urban Camo" }, { "worktrgrey", "worktr ", 2, "Gray Pants" },
@@ -93,7 +94,7 @@ SPlayerClothing sLegsClothing [ LEGS_CLOTHING_MAX ] =
 	{ "suit1trgang", "suit1tr", 2, "Green Pants" }
 };
 
-SPlayerClothing sShoesClothing [ SHOES_CLOTHING_MAX ] =
+static SPlayerClothing sShoesClothing [ SHOES_CLOTHING_MAX ] =
 {
 	{ "foot", "feet", 3, "Shoes" }, { "cowboyboot2", "biker", 3, "Cowboy Boots" },
 	{ "bask2semi", "bask1", 3, "Hi - Top Kicks" }, { "bask1eris", "bask1", 3, "Hi - Top Sneaks" },
@@ -116,31 +117,31 @@ SPlayerClothing sShoesClothing [ SHOES_CLOTHING_MAX ] =
 	{ "shoedressbrn", "shoe", 3, "Brown Shoes" }, { "shoespatz", "shoe", 3, "Spats" }
 };
 
-SPlayerClothing sLeftLowerArmClothing [ LEFT_UPPER_ARM_CLOTHING_MAX ] =
+static SPlayerClothing sLeftLowerArmClothing [ LEFT_UPPER_ARM_CLOTHING_MAX ] =
 {
 	{ "4weed", "4WEED", 4, "Weed" }, { "4rip", "4RIP", 4, "Grave" },
 	{ "4spider", "4SPIDER", 4, "Spider" }
 };
 
-SPlayerClothing sLeftUpperArmClothing [ LEFT_LOWER_ARM_CLOTHING_MAX ] =
+static SPlayerClothing sLeftUpperArmClothing [ LEFT_UPPER_ARM_CLOTHING_MAX ] =
 {
 	{ "5gun", "5GUN", 5, "Gun" }, { "5cross", "5CROSS", 5, "Cross" },
 	{ "5cross2", "5CROSS2", 5, "Rose" }, { "5cross3", "5CROSS3", 5, "Clown" }
 };
 
-SPlayerClothing sRightUpperArmClothing [ RIGHT_UPPER_ARM_CLOTHING_MAX ] =
+static SPlayerClothing sRightUpperArmClothing [ RIGHT_UPPER_ARM_CLOTHING_MAX ] =
 {
 	{ "6aztec", "6AZTEC", 6, "Aztec" }, { "6crown", "6CROWN", 6, "Web" },
 	{ "6clown", "6CLOWN", 6, "Clown" }, { "6africa", "6AFRICA", 6, "Africa" }
 };
 
-SPlayerClothing sRightLowerArmClothing [ RIGHT_LOWER_ARM_CLOTHING_MAX ] =
+static SPlayerClothing sRightLowerArmClothing [ RIGHT_LOWER_ARM_CLOTHING_MAX ] =
 {
 	{ "7cross", "7CROSS", 7, "Cross" }, { "7cross2", "7CROSS2", 7, "Cross" },
 	{ "7cross3", "7CROSS3", 7, "Cross" }, { "7mary", "7MARY", 7, "Mary" }
 };
 
-SPlayerClothing sBackTopClothing [ BACK_TOP_CLOTHING_MAX ] =
+static SPlayerClothing sBackTopClothing [ BACK_TOP_CLOTHING_MAX ] =
 {
 	{ "8sa", "8SA", 8, "Grove St ." }, { "8sa2", "8SA2", 8, "San Andreas" },
 	{ "8sa3", "8SA3", 8, "San Fierro" }, { "8westside", "8WESTSD", 8, "Westside" },
@@ -148,14 +149,14 @@ SPlayerClothing sBackTopClothing [ BACK_TOP_CLOTHING_MAX ] =
 	{ "8gun", "8GUN", 8, "Gun" }
 };
 
-SPlayerClothing sLeftChestClothing [ LEFT_CHEST_CLOTHING_MAX ] =
+static SPlayerClothing sLeftChestClothing [ LEFT_CHEST_CLOTHING_MAX ] =
 {
 	{ "9crown", "9CROWN", 9, "Crown" }, { "9gun", "9GUN", 9, "Gun" },
 	{ "9gun2", "9GUN2", 9, "Gun" }, { "9homeboy", "9HOMBY", 9, "Homeboy" },
 	{ "9bullet", "9BULLT", 9, "Bullet" }, { "9rasta", "9RASTA", 9, "Rasta" }
 };
 
-SPlayerClothing sRightChestClothing [ RIGHT_CHEST_CLOTHING_MAX ] =
+static SPlayerClothing sRightChestClothing [ RIGHT_CHEST_CLOTHING_MAX ] =
 {
 	{ "10ls", "10LS", 10, "Los Santos" }, { "10ls2", "10LS2", 10, "Los Santos" },
 	{ "10ls3", "10LS3", 10, "Los Santos" }, { "10ls4", "10LS4", 10, "Los Santos" },
@@ -163,7 +164,7 @@ SPlayerClothing sRightChestClothing [ RIGHT_CHEST_CLOTHING_MAX ] =
 	{ "10weed", "10WEED", 10, "Grove" }
 };
 
-SPlayerClothing sStomachClothing [ STOMACH_CLOTHING_MAX ] =
+static SPlayerClothing sStomachClothing [ STOMACH_CLOTHING_MAX ] =
 {
 	{ "11grove", "11GROVE", 11, "Grove" }, { "11grove2", "11GROV2", 11, "Grove" },
 	{ "11grove3", "11GROV3", 11, "Grove" }, { "11dice", "11DICE", 11, "Dice" },
@@ -171,14 +172,14 @@ SPlayerClothing sStomachClothing [ STOMACH_CLOTHING_MAX ] =
 	{ "11godsgift", "11GGIFT", 11, "God's Gift" }
 };
 
-SPlayerClothing sLowerBackClothing [ LOWER_BACK_CLOTHING_MAX ] =
+static SPlayerClothing sLowerBackClothing [ LOWER_BACK_CLOTHING_MAX ] =
 {
 	{ "12angels", "12ANGEL", 12, "Angel" }, { "12mayabird", "12MAYBR", 12, "Mayan Bird" },
 	{ "12dagger", "12DAGER", 12, "Dagger" }, { "12bandit", "12BNDIT", 12, "Masks" },
 	{ "12cross7", "12CROSS", 12, "Cross" }, { "12mayaface", "12MYFAC", 12, "Mayan Face" }
 };
 
-SPlayerClothing sChainsClothing [ CHAINS_CLOTHING_MAX ] =
+static SPlayerClothing sChainsClothing [ CHAINS_CLOTHING_MAX ] =
 {
 	{ "dogtag", "neck", 13, "Dogtags" }, { "neckafrica", "neck", 13, "Africa Pendant" },
 	{ "stopwatch", "neck", 13, "Stop Watch" }, { "necksaints", "neck", 13, "Saints Chain" },
@@ -188,7 +189,7 @@ SPlayerClothing sChainsClothing [ CHAINS_CLOTHING_MAX ] =
 	{ "neckdollar", "neck", 13, "Dollar Chain" }, { "neckcross", "neck", 13, "Cross Chain" }
 };
 
-SPlayerClothing sWatchesClothing [ WATCHES_CLOTHING_MAX ] =
+static SPlayerClothing sWatchesClothing [ WATCHES_CLOTHING_MAX ] =
 {
 	{ "watchpink", "watch", 14, "Pink Watch" }, { "watchyellow", "watch", 14, "Yellow Watch" },
 	{ "watchpro", "watch", 14, "Pro - Laps White" }, { "watchpro2", "watch", 14, "Pro - Laps Black" },
@@ -198,7 +199,7 @@ SPlayerClothing sWatchesClothing [ WATCHES_CLOTHING_MAX ] =
 	{ "watchcro", "watch", 14, "Gold Crowex" }, { "watchcro2", "watch", 14, "Silver Crowex" }
 };
 
-SPlayerClothing sGlassesClothing [ GLASSES_CLOTHING_MAX ] =
+static SPlayerClothing sGlassesClothing [ GLASSES_CLOTHING_MAX ] =
 {
 	{ "groucho", "grouchos", 15, "Joke Glasses" }, { "zorro", "zorromask", 15, "Joke Mask" },
 	{ "eyepatch", "eyepatch", 15, "Eyepatch" }, { "glasses01", "glasses01", 15, "Black Shades" },
@@ -211,7 +212,7 @@ SPlayerClothing sGlassesClothing [ GLASSES_CLOTHING_MAX ] =
 	{ "glasses05", "glasses03", 15, "Black Rim" },
 };
 
-SPlayerClothing sHatsClothing [ HATS_CLOTHING_MAX ] =
+static SPlayerClothing sHatsClothing [ HATS_CLOTHING_MAX ] =
 {
 	{ "bandred", "bandana", 16, "Red Rag Back" }, { "bandblue", "bandana", 16, "Blue Rag Back" },
 	{ "bandgang", "bandana", 16, "Green Rag Back" }, { "bandblack", "bandana", 16, "Black Rag Back" },
@@ -244,7 +245,7 @@ SPlayerClothing sHatsClothing [ HATS_CLOTHING_MAX ] =
 	{ "boaterblk", "boater", 16, "Black Boater" }
 };
 
-SPlayerClothing sSpecialClothing [ SPECIAL_CLOTHING_MAX ] =
+static SPlayerClothing sSpecialClothing [ SPECIAL_CLOTHING_MAX ] =
 {
 	{ "gimpleg", "gimpleg", 17, "Gimp Suit" }, { "valet", "valet", 17, "Valet Uniform" },
 	{ "countrytr", "countrytr", 17, "Rural Clothes" }, { "croupier", "valet", 17, "Croupier" },
@@ -252,3 +253,45 @@ SPlayerClothing sSpecialClothing [ SPECIAL_CLOTHING_MAX ] =
 	{ "pimptr", "pimptr", 17, "Pimp Suit" }, { "garageleg", "garagetr", 17, "Racing Suit" },
 	{ "medictr", "medictr", 17, "Medic Uniform" }
 };
+
+const SPlayerClothing *CClothes::GetClothingGroup ( unsigned char ucType )
+{
+	if ( ucType < PLAYER_CLOTHING_SLOTS )
+	{
+		switch ( ucType )
+		{
+			case 0: return sTorsoClothing;         case 1: return sHairClothing;
+			case 2: return sLegsClothing;          case 3: return sShoesClothing;
+			case 4: return sLeftLowerArmClothing;  case 5: return sLeftUpperArmClothing;
+			case 6: return sRightUpperArmClothing; case 7: return sRightLowerArmClothing;
+			case 8: return sBackTopClothing;       case 9: return sLeftChestClothing;
+			case 10: return sRightChestClothing;   case 11: return sStomachClothing;
+			case 12: return sLowerBackClothing;    case 13: return sChainsClothing;
+			case 14: return sWatchesClothing;      case 15: return sGlassesClothing;
+			case 16: return sHatsClothing;         case 17: return sSpecialClothing;
+		}
+	}
+
+	return 0;
+}
+
+const int CClothes::GetClothingGroupMax ( unsigned char ucType )
+{
+	if ( ucType < PLAYER_CLOTHING_SLOTS )
+	{
+		switch ( ucType )
+		{
+			case 0: return TORSO_CLOTHING_MAX;              case 1: return HAIR_CLOTHING_MAX;
+			case 2: return LEGS_CLOTHING_MAX;               case 3: return SHOES_CLOTHING_MAX;
+			case 4: return LEFT_LOWER_ARM_CLOTHING_MAX;     case 5: return LEFT_UPPER_ARM_CLOTHING_MAX;
+			case 6: return RIGHT_UPPER_ARM_CLOTHING_MAX;    case 7: return RIGHT_LOWER_ARM_CLOTHING_MAX;
+			case 8: return BACK_TOP_CLOTHING_MAX;           case 9: return LEFT_CHEST_CLOTHING_MAX;
+			case 10: return RIGHT_CHEST_CLOTHING_MAX;       case 11: return STOMACH_CLOTHING_MAX;
+			case 12: return LOWER_BACK_CLOTHING_MAX;        case 13: return CHAINS_CLOTHING_MAX;
+			case 14: return WATCHES_CLOTHING_MAX;           case 15: return GLASSES_CLOTHING_MAX;
+			case 16: return HATS_CLOTHING_MAX;              case 17: return SPECIAL_CLOTHING_MAX;
+		}
+	}
+
+	return 0;
+}
