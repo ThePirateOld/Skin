@@ -158,6 +158,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CGraphics.h" />
+    <ClInclude Include="CKey.h" />
     <ClInclude Include="CKeyBoard.h" />
     <ClInclude Include="Clothes.h" />
     <ClInclude Include="CMenu.h" />
@@ -182,6 +183,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CGraphics.cpp" />
+    <ClCompile Include="CKey.cpp" />
     <ClCompile Include="CKeyBoard.cpp" />
     <ClCompile Include="Clothes.cpp" />
     <ClCompile Include="CMenu.cpp" />

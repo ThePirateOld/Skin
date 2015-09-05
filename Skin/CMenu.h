@@ -71,7 +71,7 @@ public:
 	SMenuColor GetColor ( void );
 
 	void AddColumn ( int iColumnID, const char *szName, int iWidth = 0, D3DCOLOR d3dColor = D3DCOLOR_RGBA ( 255, 255, 255, 255 ) );
-	void AddColumnItem ( int iColumnID, D3DCOLOR d3dColor, const char *szItem, ... );
+	void AddColumnItem ( int iColumnID, D3DCOLOR d3dColor, bool bSetValue, const char *szItem, ... );
 
 	void RemoveItem ( int iColumnID, int iRow );
 	void RemoveItemByName ( int iColumnID, const char *szItem );
@@ -111,6 +111,8 @@ public:
 	void SetEnabledRowByName ( int iColumnID, const char *szItem, bool bActivated );
 	void SetEnabledRow ( int iRow, bool bActivate );
 
+	void SetNewItem ( int iColumnID, int iRow, const char *szItem, ... );
+
 	void Draw ( void );
 
 	bool OnKeyPressed ( int iRow );
@@ -123,9 +125,9 @@ public:
 	void RemoveSubMenu ( CMenu* );
 	void RemoveAllSubMenus ( void );
 
-	
 private:
 	KeyInput m_KeyInput;
+
 	struct SColumn
 	{
 		struct SColumnItem

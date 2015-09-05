@@ -87,6 +87,9 @@
     <ClInclude Include="CKeyBoard.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CKey.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -111,6 +114,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CKeyBoard.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CKey.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

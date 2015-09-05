@@ -503,9 +503,9 @@ void CMenu::AddColumn ( int iColumnID, const char *szName, int iWidth, D3DCOLOR 
 	}
 }
 
-void CMenu::AddColumnItem ( int iColumnID, D3DCOLOR d3dColor, const char *szItem, ... )
+void CMenu::AddColumnItem ( int iColumnID, D3DCOLOR d3dColor, bool bSetValue, const char *szItem, ... )
 {
-	
+
 
 	if ( szItem && m_ColumnAddon [ iColumnID ] )
 	{
@@ -521,13 +521,13 @@ void CMenu::AddColumnItem ( int iColumnID, D3DCOLOR d3dColor, const char *szItem
 		m_ColumnAddon [ iColumnID ]->ItemAddon.sItemName.push_back ( szBuffer );
 		m_ColumnAddon [ iColumnID ]->ItemAddon.d3dColor.push_back ( d3dColor );
 
-		if ( GetNumOfItems () > m_RowStatus.size () )
+		auto numItems = GetNumOfItems () ;
+		if ( numItems > m_RowStatus.size () )
 		{
-			m_RowStatus [ GetNumOfItems () - 1 ] = true;
+			m_RowStatus [ numItems - 1 ] = true;
 			m_iCountItemsEnabled++;
 		}
 	}
-
 }
 
 void CMenu::RemoveItemByName ( int iColumnID, const char *szItem )
@@ -628,7 +628,6 @@ void CMenu::SetSelectedRowByName ( int iColumnID, const char *szItem )
 			}
 		}
 	}
-
 }
 
 void CMenu::SetSelectedRow ( int iRow )
@@ -709,6 +708,17 @@ bool CMenu::OnKeyPressed ( int iRow )
 	}
 
 	return false;
+}
+
+void CMenu::SetNewItem ( int iColumnID, int iRow, const char *szItem, ... )
+{
+	char szBuffer [ 1024 ];
+	va_list ap;
+	va_start ( ap, szItem );
+	vsnprintf ( szBuffer, 1024, szItem, ap );
+	va_end ( ap );
+
+	m_ColumnAddon [ iColumnID ]->ItemAddon.sItemName [ iRow ] = szBuffer;
 }
 
 void CMenu::SetColor ( SMenuColor sColor )
@@ -881,7 +891,7 @@ void CMenu::HandleMessage ( UINT uMsg, WPARAM wParam, LPARAM lParam )
 				case VK_UP:
 				case 0x57:
 				{
-					if ( !SubMenu.InvokeMenu [ this ].bStat || 
+					if ( !SubMenu.InvokeMenu [ this ].bStat ||
 						 m_bLockControls )
 						return;
 
@@ -896,7 +906,7 @@ void CMenu::HandleMessage ( UINT uMsg, WPARAM wParam, LPARAM lParam )
 				case VK_DOWN:
 				case 0x53:
 				{
-					if ( !SubMenu.InvokeMenu [ this ].bStat || 
+					if ( !SubMenu.InvokeMenu [ this ].bStat ||
 						 m_bLockControls )
 						return;
 
@@ -912,8 +922,7 @@ void CMenu::HandleMessage ( UINT uMsg, WPARAM wParam, LPARAM lParam )
 			}
 			break;
 		}
-
-	} 
+	}
 }
 
 void CMenu::_UpdateItemsUp ( void )
