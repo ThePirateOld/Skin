@@ -73,7 +73,7 @@
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>D3D9Headers;$(IncludePath)</IncludePath>
     <LibraryPath>D3D9Headers;$(LibraryPath)</LibraryPath>
-    <OutDir>..\..\..\..\..\..\..\Program Files %28x86%29\Rockstar Games\GTA San Andreas\scripts</OutDir>
+    <OutDir>F:\GTA San Andreas\scripts</OutDir>
     <TargetExt>.asi</TargetExt>
     <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>

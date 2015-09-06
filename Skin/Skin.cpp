@@ -7,6 +7,7 @@
 
 #include "injector\utility.hpp"
 #include "internal\CallbackResetDevice.hpp"
+#include "injector\calling.hpp"
 
 static CallbackResetDevice ResetDevice;
 static CallbackManager1C<0x53E4FF> DrawHUDFunc;
@@ -15,15 +16,7 @@ static CallbackManager1C<0x53BC21> TerminateGame;
 static CallbackManager1C<0x748CFB> InitGameFunc;
 static CallbackManager2C<0x748E09, 0x748E48> ReInitGameFunc;
 
-void RegisterFuncs ( void )
-{
-	InitGameFunc.RegisterFuncAfter ( SkinInit );
-	//ReInitGameFunc.RegisterFuncAfter ( ReInit );
-	DrawHUDFunc.RegisterFuncAfter ( Draw );
-	ResetDevice.RegisterFuncBefore ( OnLostDevice );
-	ResetDevice.RegisterFuncAfter ( OnResetDevice );
-	//TerminateGame.RegisterFuncAfter ( Remove );
-}
+
 
 CMenuManager *g_pMenuManager = NULL;
 
@@ -122,49 +115,46 @@ void ReleaseSpecialModel ( DWORD dwModelID )
 	__asm add esp, 0x4
 }
 
-bool HasModelLoaded ( DWORD dwModelID )
+BOOL HasModelLoaded ( int iModelID )
 {
-	if ( dwModelID < 0 )
-		return false;
-
+	DWORD dwFunc = 0x4044C0;
+	DWORD ModelID = iModelID;
 	BOOL bReturn = 0;
 
-	__asm push   dwModelID
-	__asm mov	 eax, 004044C0h
-	__asm call   eax
-	__asm movzx  eax, al
-	__asm mov    bReturn, eax
-	__asm pop    eax
+	_asm
+	{
+		push    ModelID
+		call    dwFunc
+		movzx   eax, al
+		mov     bReturn, eax
+		pop     eax
+	}
 
 	return bReturn;
 }
 
-void RequestModel ( DWORD dwModelID )
+void RequestModel ( int iModelID,int iLoadingStream )
 {
-	if ( dwModelID < 0 )
-		return;
-
-	__asm push  0
-	__asm push  dwModelID
-	__asm mov	eax, 004087E0h
-	__asm call  eax
-	__asm add   esp, 0x8
+	_asm push iLoadingStream
+	_asm push iModelID
+	_asm mov edx, 0x4087E0
+	_asm call edx
+	_asm pop edx
+	_asm pop edx
 }
 
-void ReleaseModel ( DWORD dwModelID )
+void ReleaseModel ( int iModelID )
 {
-	if ( dwModelID < 0 )
-		return;
-
-	__asm push dwModelID
-	__asm mov eax, 004089A0h
-	__asm call eax
-	__asm add esp, 0x4
+	_asm push iModelID
+	_asm mov edx, 0x4089A0
+	_asm call edx
+	_asm pop edx
 }
 
-void RequestAllModels ( void )
+void RequestAllModels ( bool bOnlyPriorityModels )
 {
-	__asm push  0
+	DWORD dwOnlyPriorityModels = bOnlyPriorityModels;
+	__asm push  dwOnlyPriorityModels;
 	__asm mov	eax, 0040EA10h
 	__asm call  eax
 	__asm add   esp, 0x4
@@ -189,7 +179,7 @@ void SetClothes ( const char* szTexture, const char* szModel, int textureType )
 	_asm
 	{
 		mov	edi, 00B7CD98h
-		mov	ecx, [ edi + 0x4 + 0x4 ]
+		mov	ecx, [ edi + 0x4 + 0x4 ] // (CPed) + (CPlayerData) + (CClothes)
 		push    textureType
 		push    szModel
 		push    szTexture
@@ -213,6 +203,346 @@ void RebuildChar ( void )
 	}
 }
 
+#define HOOKPOS_CClothes_RebuildPlayer  0x5A82C0
+DWORD RETURN_CClothes_RebuildPlayera = 0x5A82C8;
+DWORD RETURN_CClothes_RebuildPlayerb = 0x5A837F;
+
+// Only allow rebuild player on CJ - Stops other models getting corrupted (spider CJ)
+// hooked at 5A82C0 8 bytes
+void _declspec( naked ) HOOK_CClothes_RebuildPlayer ()
+{
+	_asm
+	{
+		push    esi
+		mov     esi, [ esp + 8 ]
+		movsx   eax, word ptr [ esi + 34 ]
+		cmp     eax, 0
+		jne     cont  // Not CJ, so skip
+
+		// continue standard path
+		mov     eax, [ esi + 18h ]
+		jmp     RETURN_CClothes_RebuildPlayera  // 005A82C8
+
+		cont:
+		jmp     RETURN_CClothes_RebuildPlayerb  // 005A837F
+	}
+}
+
+
+template < class T, class U >
+void MemPut ( U ptr, const T value )
+{
+	if ( *( T* ) ptr != value )
+		memcpy ( ( void* ) ptr, &value, sizeof ( T ) );
+}
+////////////////////////////////////////////////////////////////////
+
+BYTE * CreateJump ( DWORD dwFrom, DWORD dwTo, BYTE * ByteArray )
+{
+	ByteArray [ 0 ] = 0xE9;
+	MemPut < DWORD > ( &ByteArray [ 1 ], dwTo - ( dwFrom + 5 ) );
+	return ByteArray;
+}
+
+#define MAX_JUMPCODE_SIZE 50
+BOOL HookInstall ( DWORD dwInstallAddress,
+				   DWORD dwHookHandler,
+				   int iJmpCodeSize )
+{
+	BYTE JumpBytes [ MAX_JUMPCODE_SIZE ];
+	memset ( JumpBytes, 0x90, MAX_JUMPCODE_SIZE );
+	if ( CreateJump ( dwInstallAddress, dwHookHandler, JumpBytes ) )
+	{
+
+		memcpy ( ( PVOID ) dwInstallAddress, JumpBytes, iJmpCodeSize );
+
+		return TRUE;
+	}
+	else
+	{
+		return FALSE;
+	}
+}
+
+
+//
+// Skip loading the directory data from player.img if it has already been loaded.
+// Speeds up clothes a bit, but is only part of a solution - The actual files from inside player.img are still loaded each time
+//
+bool _cdecl IsPlayerImgDirLoaded ( void )
+{
+	// When player.img dir is loaded, it looks this this:
+	// 0x00BC12C0  00bbcdc8 00000226
+	DWORD* ptr1 = ( DWORD* ) 0x00BC12C0;
+	if ( ptr1 [ 0 ] == 0x00BBCDC8 && 
+		 ptr1 [ 1 ] == 0x0000226 )
+	{
+		return true;
+	}
+
+	return false;
+}
+
+// Hook info
+#define HOOKPOS_LoadingPlayerImgDir                     0x5A69E3
+#define HOOKSIZE_LoadingPlayerImgDir                    5
+DWORD RETURN_LoadingPlayerImgDirA = 0x5A69E8;
+DWORD RETURN_LoadingPlayerImgDirB = 0x5A6A06;
+void _declspec( naked ) HOOK_LoadingPlayerImgDir ()
+{
+	// hook from 005A69E3 5 bytes
+	_asm
+	{
+		pushad
+		call    IsPlayerImgDirLoaded
+		cmp     al, 0
+		jnz     skip
+		popad
+
+		// Standard code to load img directory
+		push    0BBCDC8h
+		jmp     RETURN_LoadingPlayerImgDirA
+
+		// Skip loading img directory
+		skip :
+		popad
+		jmp     RETURN_LoadingPlayerImgDirB
+	}
+}
+
+
+////////////////////////////////////////////////
+//
+// Hook CStreaming::RequestFile
+//
+//
+//
+////////////////////////////////////////////////
+
+	struct CStreamingInfo
+	{
+		USHORT    usNext;
+		USHORT    usPrev;
+
+		USHORT  usNextOnce;         
+		UCHAR   ucFlags;         // 0x12 when loading, 0x02 when finished loading
+		UCHAR   ucImgId;
+
+		int     iBlockOffset;
+		int     iBlockCount;
+		UINT    uiLoadflag;         // 0-not loaded  2-requested  3-loaded  1-processed
+	};
+
+	int     iReturnFileId;
+	char*   pReturnBuffer;
+
+
+
+bool FileLoad ( const std::string& strFilename, std::vector < char >& buffer )
+{
+	buffer.clear ();
+	// Open
+	FILE* fh = fopen ( strFilename.c_str(), "rb" );
+	if ( !fh )
+		return false;
+	// Get size
+	fseek ( fh, 0, SEEK_END );
+	int size = ftell ( fh );
+	rewind ( fh );
+
+	// Set offset
+	fseek ( fh, 0, SEEK_SET );
+
+	int bytesRead = 0;
+	if ( size > 0 && size < 1e9 )   // 1GB limit
+	{
+		size = min ( size, INT_MAX );
+		// Allocate space
+		buffer.assign ( size, 0 );
+		// Read into buffer
+		bytesRead = fread ( &buffer.at ( 0 ), 1, size, fh );
+	}
+	// Close
+	fclose ( fh );
+	return bytesRead == size;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// If request is for a file inside player.img (imgId 5) and uiLoadflag is 0 or 1
+// then force use of our cached player.img data
+//
+DWORD FUNC_CStreamingInfoAddToList = 0x407480;
+DWORD FUNC_CStreamingConvertBufferToObject = 0x40C6B0;
+
+static char *PlayerImgCachePtr = NULL;
+
+bool _cdecl OnCallCStreamingInfoAddToList ( int flags, CStreamingInfo* pImgGTAInfo )
+{
+	static bool bLoadedFile = false;
+	if ( !bLoadedFile )
+	{
+		std::vector<char> m_PlayerImgCache;
+
+		MEMORYSTATUSEX statex;
+		ZeroMemory ( &statex, sizeof ( MEMORYSTATUSEX ) );
+
+		GlobalMemoryStatusEx ( &statex );
+
+		// Check for more than 512 installed ram
+		if ( statex.ullTotalPhys > 0 && statex.ullTotalPhys > 512 * 1024 )
+		{
+			FILE* fh = fopen ( "models/player.img", "rb" );
+			if ( !fh )
+				return false;
+	
+			fseek ( fh, 0, SEEK_END );
+			int size = ftell ( fh );
+			rewind ( fh );
+			fseek ( fh, 0, SEEK_SET );
+
+			int bytesRead = 0;
+			if ( size > 0 && size < 1e9 ) // 1GB limit
+			{
+				size = min ( size, INT_MAX );
+				// Allocate space
+				m_PlayerImgCache.assign ( size, 0 );
+				// Read into buffer
+				bytesRead = fread ( &m_PlayerImgCache.at ( 0 ), 1, size, fh );
+			}
+			fclose ( fh );
+		}
+
+		// Update the cache pointer
+		if ( !m_PlayerImgCache.empty () )
+			PlayerImgCachePtr = &m_PlayerImgCache [ 0 ];
+		else
+			return false;
+
+		bLoadedFile = true;
+	}
+
+	if ( pImgGTAInfo->ucImgId == 5 )
+	{
+		// If bLoadingBigModel is set, try to get it unset
+		#define VAR_CStreaming_bLoadingBigModel     0x08E4A58
+		BYTE& bLoadingBigModel = *( BYTE* ) VAR_CStreaming_bLoadingBigModel;
+		if ( bLoadingBigModel )
+		{
+			RequestAllModels ( true );
+
+			if ( bLoadingBigModel )
+				RequestAllModels ( false );
+		}
+
+		int iFileId = ( ( int ) pImgGTAInfo - 0x08E4CC0 ) / 20;
+
+		iReturnFileId = iFileId;
+		pReturnBuffer = PlayerImgCachePtr + pImgGTAInfo->iBlockOffset * 2048;
+
+		// Update flags
+		pImgGTAInfo->uiLoadflag = 3;
+
+		// Remove priorty flag, as not counted in ms_numPriorityRequests
+		pImgGTAInfo->ucFlags &= ~0x10;
+
+		return true;
+	}
+
+	return false;
+}
+
+// Hook info
+#define HOOKPOS_CallCStreamingInfoAddToList             0x408962
+#define HOOKSIZE_CallCStreamingInfoAddToList            5
+DWORD RETURN_CallCStreamingInfoAddToListA = 0x408967;
+DWORD RETURN_CallCStreamingInfoAddToListB = 0x408990;
+void _declspec( naked ) HOOK_CallCStreamingInfoAddToList ()
+{
+	_asm
+	{
+		pushad
+		push    ecx
+			push    ebx
+			call    OnCallCStreamingInfoAddToList
+			add     esp, 4 * 2
+			cmp     al, 0
+			jnz     skip
+
+			// Continue with standard code
+			popad
+			call    FUNC_CStreamingInfoAddToList
+			jmp     RETURN_CallCStreamingInfoAddToListA
+
+
+			// Handle load here
+			skip :
+		popad
+			pushad
+
+			mov     eax, 0
+			push    eax
+			mov     eax, iReturnFileId
+			push    eax
+			mov     eax, pReturnBuffer
+			push    eax
+			call    FUNC_CStreamingConvertBufferToObject
+			add     esp, 4 * 3
+
+			popad
+			add     esp, 4 * 1
+			jmp     RETURN_CallCStreamingInfoAddToListB
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+// Return true to skip
+bool _cdecl ShouldSkipLoadRequestedModels ( DWORD calledFrom )
+{
+	if ( !PlayerImgCachePtr )
+		return false;
+
+	// Skip LoadRequestedModels if called from:
+	//      CClothesBuilder::ConstructGeometryArray      5A55A0 - 5A56B6
+	//      CClothesBuilder::LoadAndPutOnClothes         5A5F70 - 5A6039
+	//      CClothesBuilder::ConstructTextures           5A6040 - 5A6520
+	if ( calledFrom > 0x5A55A0 && 
+		 calledFrom < 0x5A6520 )
+		return true;
+
+	return false;
+}
+
+// Hook info
+#define HOOKPOS_CStreamingLoadRequestedModels  0x15670A0
+DWORD RETURN_CStreamingLoadRequestedModels = 0x15670A5;
+DWORD RETURN_CStreamingLoadRequestedModelsB = 0x156711B;
+
+void _declspec( naked ) HOOK_CStreamingLoadRequestedModels ()
+{
+	_asm
+	{
+		pushad
+		push [ esp + 32 + 4 * 0 ]
+		call    ShouldSkipLoadRequestedModels
+		add     esp, 4 * 1
+		cmp     al, 0
+		jnz     skip
+
+		// Continue with standard code
+		popad
+		mov     al, byte ptr ds : [008E4A58h]
+		jmp     RETURN_CStreamingLoadRequestedModels
+
+		// Skip LoadRequestedModels
+		skip :
+		popad
+		jmp     RETURN_CStreamingLoadRequestedModelsB
+	}
+}
+
+
+#include <stdlib.h>
 namespace CallbackHandlers
 {
 	void MenuNewSkins ( CMenu *pMenu, int iRow )
@@ -222,21 +552,22 @@ namespace CallbackHandlers
 
 	void MenuPedSkins ( CMenu *pMenu, int iRow )
 	{
-		int iModel = sPedModel [ iRow ]. uiPedID;
+		int iModel = sPedModel [ iRow ].uiPedID;
 
 		if ( pMenu->OnKeyPressed ( iRow ) )
 		{
-			if ( iModel != NULL )
+			// These models are always loaded
+			if ( iModel != 0 && iModel != 7 )
 			{
 				if ( !HasModelLoaded ( iModel ) )
-
 				{
-					RequestModel ( iModel );
-					RequestAllModels ();
-
+					RequestModel ( iModel, 0x6 );
+					RequestAllModels ( false );
 				}
+
 				SetModelIndex ( iModel );
-				ReleaseModel ( iModel );
+				if ( HasModelLoaded ( iModel ) )
+					ReleaseModel ( iModel );
 			}
 			else
 			{
@@ -252,7 +583,7 @@ namespace CallbackHandlers
 			if ( !HasSpecialModelLoaded ( 290 ) )
 			{
 				RequestSpecialModel ( 290, pMenu->GetSelectedRowByName ( 1 ), 0 );
-				RequestAllModels ();
+				RequestAllModels ( false );
 			}
 
 			SetModelIndex ( 290 );
@@ -264,9 +595,15 @@ namespace CallbackHandlers
 	{
 		if ( pMenu->OnKeyPressed ( iRow ) )
 		{
-			const SPlayerClothing *ClothesInfo = CClothes::GetClothingGroupByName ( pMenu->GetColumnName ( 0 ) );
-			SetClothes ( ClothesInfo [ iRow ].szTexture, ClothesInfo [ iRow ].szModel, ClothesInfo [ iRow ].uiBodyPart );
-			RebuildChar ();
+
+
+			auto ptr = ( DWORD* ) 0xB6F612;
+			int *as = ( int * ) ( *ptr + 0x22 );
+			
+				const SPlayerClothing *ClothesInfo = CClothes::GetClothingGroupByName ( pMenu->GetColumnName ( 0 ) );
+				SetClothes ( ClothesInfo [ iRow ].szTexture, ClothesInfo [ iRow ].szModel, ClothesInfo [ iRow ].uiBodyPart );
+				RebuildChar ();
+			
 		}
 	}
 
@@ -288,8 +625,26 @@ namespace CallbackHandlers
 	}
 };
 
+void RegisterFuncs ( void )
+{
+	// Spider CJ fix
+	HookInstall ( HOOKPOS_CClothes_RebuildPlayer, ( DWORD ) HOOK_CClothes_RebuildPlayer, 8 );
+
+	HookInstall ( HOOKPOS_CStreamingLoadRequestedModels, ( DWORD ) HOOK_CStreamingLoadRequestedModels, 5 );
+	HookInstall ( HOOKPOS_LoadingPlayerImgDir, ( DWORD ) HOOK_LoadingPlayerImgDir, 5 );
+	HookInstall ( HOOKPOS_CallCStreamingInfoAddToList, ( DWORD ) HOOK_CallCStreamingInfoAddToList, 5 );
+	
+	InitGameFunc.RegisterFuncAfter ( SkinInit );
+	//ReInitGameFunc.RegisterFuncAfter ( ReInit );
+	DrawHUDFunc.RegisterFuncAfter ( Draw );
+	ResetDevice.RegisterFuncBefore ( OnLostDevice );
+	ResetDevice.RegisterFuncAfter ( OnResetDevice );
+	//TerminateGame.RegisterFuncAfter ( Remove );
+}
+
 void SkinInit ()
 {
+	
 	g_pMenuManager = new CMenuManager ();
 
 	if ( !g_pMenuManager )
@@ -419,6 +774,10 @@ void Draw ()
 	if ( g_pMenuManager )
 
 	{
+		auto ptr = ( DWORD* ) 0x00B6F5F0;
+		int *as = ( int * ) ( *ptr + 0x598 );
+		*as = 1;
+
 		g_pMenuManager->Draw ();
 	}
 }

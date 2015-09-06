@@ -70,17 +70,17 @@ static SPlayerClothing sHairClothing [ HAIR_CLOTHING_MAX ] =
 static SPlayerClothing sLegsClothing [ LEGS_CLOTHING_MAX ] =
 {
 	{ "player_legs", "legs", 2, "Legs" }, { "worktrcamogrn", "worktr", 2, "Woodland Camo" },
-	{ "worktrcamogry", "worktr", 2, "Urban Camo" }, { "worktrgrey", "worktr ", 2, "Gray Pants" },
+	{ "worktrcamogry", "worktr", 2, "Urban Camo" }, { "worktrgrey", "worktr", 2, "Gray Pants" },
 	{ "worktrkhaki", "worktr", 2, "Olive Pants" }, { "tracktr", "tracktr", 2, "Sweat Pants" },
 	{ "tracktreris", "tracktr", 2, "Track Pants" }, { "jeansdenim", "jeans", 2, "Blue Jeans" },
 	{ "legsblack", "legs", 2, "Black Boxers" }, { "legsheart", "legs", 2, "Heart Boxers" },
 	{ "biegetr", "chinosb", 2, "Beige Pants" }, { "tracktrpro", "tracktr", 2, "Track Pants" },
-	{ "tracktrwhstr", "tracktr", 2, "Black Track Pants" }, { "racktrblue", "tracktr", 2, "Blue Track Pants" },
+	{ "tracktrwhstr", "tracktr", 2, "Black Track Pants" }, { "tracktrblue", "tracktr", 2, "Blue Track Pants" },
 	{ "tracktrgang", "tracktr", 2, "Green Track Pants" }, { "bbshortwht", "boxingshort", 2, "Ball Shorts" },
 	{ "boxshort", "boxingshort", 2, "Boxing Shorts" }, { "bbshortred", "boxingshort", 2, "Dribbler Shorts" },
 	{ "shellsuittr", "tracktr", 2, "Leisure Pants" }, { "shortsgrey", "shorts", 2, "Gray Shorts" },
 	{ "shortskhaki", "shorts", 2, "Olive Shorts" }, { "chongergrey", "chonger", 2, "Gray Chonglers" },
-	{ "chongergang", "chonger", 2, "Green Chonglers" }, { "chongerred", "chonger ", 2, "Red Chonglers" },
+	{ "chongergang", "chonger", 2, "Green Chonglers" }, { "chongerred", "chonger", 2, "Red Chonglers" },
 	{ "chongerblue", "chonger", 2, "Blue Chonglers" }, { "shortsgang", "shorts", 2, "Green Shorts" },
 	{ "denimsgang", "jeans", 2, "Green Jeans" }, { "denimsred", "jeans", 2, "Red Jeans" },
 	{ "chinosbiege", "chinosb", 2, "Beige Khakis" }, { "chinoskhaki", "chinosb", 2, "Olive Khakis" },
@@ -254,27 +254,13 @@ static SPlayerClothing sSpecialClothing [ SPECIAL_CLOTHING_MAX ] =
 	{ "medictr", "medictr", 17, "Medic Uniform" }
 };
 
-const   SPlayerClothing  *CClothes::GetClothingGroupByName ( const char *szBodypartName )
+const SPlayerClothing  *CClothes::GetClothingGroupByName ( const char *szBodypartName )
 {
-	if ( szBodypartName == sClothingType [ 0 ].szName ) return sTorsoClothing;
-	if ( szBodypartName == sClothingType [ 1 ].szName ) return sHairClothing;
-	if ( szBodypartName == sClothingType [ 2 ].szName ) return sLegsClothing;
-	if ( szBodypartName == sClothingType [ 3 ].szName ) return sShoesClothing;
-	if ( szBodypartName == sClothingType [ 4 ].szName ) return sLeftLowerArmClothing;
-	if ( szBodypartName == sClothingType [ 5 ].szName ) return sLeftUpperArmClothing;
-	if ( szBodypartName == sClothingType [ 6 ].szName ) return sRightUpperArmClothing;
-	if ( szBodypartName == sClothingType [ 7 ].szName ) return sRightLowerArmClothing;
-	if ( szBodypartName == sClothingType [ 8 ].szName ) return sBackTopClothing;
-	if ( szBodypartName == sClothingType [ 9 ].szName ) return sLeftChestClothing;
-	if ( szBodypartName == sClothingType [ 10 ].szName ) return sRightChestClothing;
-	if ( szBodypartName == sClothingType [ 12 ].szName ) return sStomachClothing;
-	if ( szBodypartName == sClothingType [ 12 ].szName ) return sLowerBackClothing;
-	if ( szBodypartName == sClothingType [ 13 ].szName ) return sChainsClothing;
-	if ( szBodypartName == sClothingType [ 14 ].szName ) return sWatchesClothing;
-	if ( szBodypartName == sClothingType [ 15 ].szName ) return sGlassesClothing;
-	if ( szBodypartName == sClothingType [ 16 ].szName ) return sHatsClothing;
-	if ( szBodypartName == sClothingType [ 17 ].szName ) return sSpecialClothing;
-
+	for ( size_t i = 0; i < PLAYER_CLOTHING_SLOTS; i++ )
+	{
+		if ( szBodypartName == sClothingType [ i ].szName )
+			return GetClothingGroup ( i );
+	}
 	return NULL;
 }
 
