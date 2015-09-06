@@ -690,22 +690,22 @@ void CMenu::SetEnabledRow ( int iRow, bool bActivate )
 
 bool CMenu::OnKeyPressed ( int iRow )
 {
-	if ( GetAsyncKeyState ( VK_SPACE ) )
+	if ( m_iCurrentRow == iRow )
 	{
-		if ( m_bKeys [ iRow ] )
+		if ( GetAsyncKeyState ( VK_SPACE ) )
 		{
-			m_bKeys [ iRow ] = false;
-
-			if ( m_iCurrentRow == iRow )
+			if ( m_bKeys [ iRow ] )
 			{
+				m_bKeys [ iRow ] = false;
 				return true;
 			}
 		}
+		else
+		{
+			m_bKeys [ iRow ] = true;
+		}
 	}
-	else
-	{
-		m_bKeys [ iRow ] = true;
-	}
+
 
 	return false;
 }

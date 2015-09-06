@@ -80,46 +80,85 @@ void CheckLimit ( int iMin, int iMax, int &iValue )
 		iValue = iMax;
 	}
 }
-#define setModelIndex  0x5E4880
-
 
 void RequestSpecialModel ( int channel, const char *szModel, int index )
 {
-	DWORD dwFunc = 0x00409D10; // RequestSpecialModel
+	DWORD dwFunc = 0x00409D10;
 	__asm
 	{
-		push channel
-		push szModel
-		push index
-		call dwFunc
-		add  esp, 0xC
+		push	channel
+		push	szModel
+		push	index
+		call	dwFunc
+		add		esp, 0xC
 
 	};
 }
 
-void RequestAllModels (bool bOnlyForPriority)
+bool HasModelLoaded ( DWORD dwModelID )
 {
-	DWORD dwFunc = 0x0040EA10; // load all requested models
-	DWORD dwPriority = bOnlyForPriority;
-	__asm
-	{
-		push   dwPriority
-		call   dwFunc
-		add    esp, 4
-	}
+	BOOL bReturn = 0;
+
+	__asm push   dwModelID
+	__asm mov	 eax, 004044C0h
+	__asm call   eax
+	__asm movzx  eax, al
+	__asm mov    bReturn, eax
+	__asm pop    eax
+
+	return bReturn;
 }
 
+void RequestModel ( DWORD dwModelID )
+{
+	if ( dwModelID < 0 )
+		return;
 
+	__asm push  0
+	__asm push  dwModelID
+	__asm mov	eax, 004087E0h
+	__asm call  eax
+	__asm add   esp, 8
+}
+
+void RequestAllModels ( void )
+{
+	__asm push  0
+	__asm mov	eax, 0040EA10h
+	__asm call  eax
+	__asm add   esp, 0x4
+}
+
+void SetModelIndex ( DWORD dwModelIndex )
+{
+	__asm mov	edi, 00B7CD98h
+	__asm mov	ecx, [ edi ]
+	__asm push  dwModelIndex
+	__asm mov	eax, 005E4880h
+	__asm call	eax
+}
 
 namespace CallbackHandlers
 {
 	void MenuNewSkins ( CMenu *pMenu, int iRow )
 	{
+
 	}
 
 	void MenuPedSkins ( CMenu *pMenu, int iRow )
 	{
+		int iModel = sPedModel [ iRow ].uiPedID;
 
+		if ( pMenu->OnKeyPressed ( iRow ) )
+		{
+			if ( !HasModelLoaded ( iModel ) )
+			{
+				RequestModel ( iModel );
+				RequestAllModels ();
+			}
+
+			SetModelIndex ( iModel );
+		}
 	}
 
 	void MenuSpecialSkins ( CMenu *pMenu, int iRow )
@@ -168,13 +207,12 @@ void SkinInit ()
 		if ( !g_pMenuManager->GetMenu ( i ) )
 			return;
 	}
-
 	g_pMenuManager->GetMenu ( MENU_ID_MAIN_MENU )->SetPos ( D3DXVECTOR2 ( 200.f, 200.f ) );
 	g_pMenuManager->GetMenu ( MENU_ID_MAIN_MENU )->SetHeight ( 20 );
 
 	g_pMenuManager->GetMenu ( MENU_ID_MAIN_MENU )->AddColumn ( 0, "Main menu", 200 );
 
-	g_pMenuManager->GetMenu ( MENU_ID_MAIN_MENU )->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, "New Skins" );
+	g_pMenuManager->GetMenu ( MENU_ID_MAIN_MENU )->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, "New Skins");
 	g_pMenuManager->GetMenu ( MENU_ID_MAIN_MENU )->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, "Ped Skins" );
 	g_pMenuManager->GetMenu ( MENU_ID_MAIN_MENU )->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, "Special Skins" );
 	g_pMenuManager->GetMenu ( MENU_ID_MAIN_MENU )->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, "Change Player Clothes" );
@@ -280,7 +318,10 @@ void SkinInit ()
 void Draw ()
 {
 	if ( g_pMenuManager )
+
+	{
 		g_pMenuManager->Draw ();
+	}
 }
 
 void OnLostDevice ()
