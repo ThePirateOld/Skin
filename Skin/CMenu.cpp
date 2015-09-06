@@ -8,10 +8,7 @@ struct SSubMenuAddon
 		bool bAdded;
 	};
 
-	int iCount=0;
-
-	bool bRet;
-	bool bNext;
+	int iCount = 0;
 
 	std::map<CMenu*, SInvokeMenu> InvokeMenu;
 	std::map<CMenu*, std::vector<SMenuAddon>> Addon;
@@ -358,17 +355,16 @@ void CMenu::Draw ( void )
 		if ( m_pEventHandler )
 			m_pEventHandler ( this, m_iCurrentRow );
 
+		static bool bKey;
 		for ( size_t i = 0; i < SubMenu.Addon [ this ].size (); i++ )
 		{
-
-
 			if ( SubMenu.Addon [ this ] [ i ].ID == m_iCurrentRow )
 			{
 				if ( GetAsyncKeyState ( VK_SPACE ) )
 				{
-					if ( SubMenu.bNext )
+					if ( bKey )
 					{
-						SubMenu.bNext  = false;
+						bKey = false;
 
 						SubMenu.Addon [ this ] [ i ].pMenu->SetSelectedRow ( 0 );
 
@@ -382,7 +378,7 @@ void CMenu::Draw ( void )
 				}
 				else
 				{
-					SubMenu.bNext  = true;
+					bKey = true;
 				}
 			}
 
@@ -390,16 +386,16 @@ void CMenu::Draw ( void )
 	}
 	else
 	{
+		static bool bKey;
 		for ( size_t i = 0; i < SubMenu.Addon [ this ].size (); i++ )
 		{
-
 			if ( SubMenu.NextMenu [ SubMenu.iCount ] == SubMenu.Addon [ this ] [ i ].pMenu )
 			{
 				if ( GetAsyncKeyState ( VK_RETURN ) )
 				{
-					if ( SubMenu.bRet )
+					if ( bKey )
 					{
-						SubMenu.bRet = false;
+						bKey = false;
 						SubMenu.iCount--;
 
 						SubMenu.InvokeMenu [ this ].bStat = true;
@@ -409,7 +405,7 @@ void CMenu::Draw ( void )
 				}
 				else
 				{
-					SubMenu.bRet = true;
+					bKey = true;
 				}
 			}
 
@@ -578,6 +574,12 @@ void CMenu::RemoveColumn ( int iColumnID )
 	SAFE_DELETE ( m_ColumnAddon [ iColumnID ] );
 
 	m_ColumnAddon.erase ( m_ColumnAddon.begin () + iColumnID );
+}
+
+char *CMenu::GetColumnName ( int iColumnID )
+{
+	if ( m_ColumnAddon [ iColumnID ] )
+		return m_ColumnAddon [ iColumnID ]->szName;
 }
 
 void CMenu::ClearItemsFromColumn ( int iColumnID )

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #define PLAYER_CLOTHING_SLOTS 18
 
 #define TORSO_CLOTHING_MAX 68
@@ -38,7 +39,8 @@ class CClothes
 {
 public:
 	static const  SPlayerClothing  *GetClothingGroup ( unsigned char ucType );
+	static const  SPlayerClothing  *GetClothingGroupByName ( const char *szBodypartName );
 	static const int GetClothingGroupMax ( unsigned char ucType );
 };
 
-extern SPlayerClothingType sClothesNames [ PLAYER_CLOTHING_SLOTS ];
+extern SPlayerClothingType sClothingType [ PLAYER_CLOTHING_SLOTS ];

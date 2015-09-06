@@ -117,6 +117,8 @@ public:
 
 	bool OnKeyPressed ( int iRow );
 
+
+	char *GetColumnName ( int iColumnID );
 	void LockControls ( bool bLock );
 
 	void HandleMessage ( UINT uMsg, WPARAM wParam, LPARAM lParam );

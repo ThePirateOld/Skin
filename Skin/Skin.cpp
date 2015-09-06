@@ -182,6 +182,37 @@ void SetModelIndex ( DWORD dwModelID )
 	__asm call	eax
 }
 
+void SetClothes ( const char* szTexture, const char* szModel, int textureType )
+{
+	DWORD dwFunc = 0x5A8080;
+
+	_asm
+	{
+		mov	edi, 00B7CD98h
+		mov	ecx, [ edi + 0x4 + 0x4 ]
+		push    textureType
+		push    szModel
+		push    szTexture
+		call    dwFunc
+	}
+}
+
+void RebuildChar ( void )
+{
+	DWORD dwFunc = 0x5A82C0;
+	DWORD dwThis = 0xB7CD98;
+
+	_asm
+	{
+		push    0
+		mov	edi, 00B7CD98h
+		mov esi, [ edi ]
+		push    esi
+		call    dwFunc
+		add     esp, 8
+	}
+}
+
 namespace CallbackHandlers
 {
 	void MenuNewSkins ( CMenu *pMenu, int iRow )
@@ -191,15 +222,19 @@ namespace CallbackHandlers
 
 	void MenuPedSkins ( CMenu *pMenu, int iRow )
 	{
-		int iModel = std::atoi ( pMenu->GetSelectedRowByName ( 1 ) );
+		int iModel = sPedModel [ iRow ]. uiPedID;
 
 		if ( pMenu->OnKeyPressed ( iRow ) )
 		{
 			if ( iModel != NULL )
 			{
-				RequestModel ( iModel );
-				RequestAllModels ();
+				if ( !HasModelLoaded ( iModel ) )
 
+				{
+					RequestModel ( iModel );
+					RequestAllModels ();
+
+				}
 				SetModelIndex ( iModel );
 				ReleaseModel ( iModel );
 			}
@@ -227,7 +262,12 @@ namespace CallbackHandlers
 
 	void MenuClothes ( CMenu *pMenu, int iRow )
 	{
-
+		if ( pMenu->OnKeyPressed ( iRow ) )
+		{
+			const SPlayerClothing *ClothesInfo = CClothes::GetClothingGroupByName ( pMenu->GetColumnName ( 0 ) );
+			SetClothes ( ClothesInfo [ iRow ].szTexture, ClothesInfo [ iRow ].szModel, ClothesInfo [ iRow ].uiBodyPart );
+			RebuildChar ();
+		}
 	}
 
 	void MenuStat ( CMenu *pMenu, int iRow )
@@ -347,12 +387,12 @@ void SkinInit ()
 	{
 		int iMenuClothesID = i + MENU_ID_CLOTHES_TORSO;
 
-		g_pMenuManager->GetMenu ( MENU_ID_CHANGE_CLOTHES )->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, sClothesNames [ i ].szName );
-		g_pMenuManager->GetMenu ( iMenuClothesID )->AddColumn ( 0, sClothesNames [ i ].szName, 200 );
+		g_pMenuManager->GetMenu ( MENU_ID_CHANGE_CLOTHES )->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, sClothingType [ i ].szName );
+		g_pMenuManager->GetMenu ( iMenuClothesID )->AddColumn ( 0, sClothingType [ i ].szName, 200 );
 
 		const SPlayerClothing *ClothesInfo = CClothes::GetClothingGroup ( i );
 		for ( size_t j = 0; j < CClothes::GetClothingGroupMax ( i ); j++ )
-			g_pMenuManager->GetMenu ( iMenuClothesID )->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, ClothesInfo [ j ].szTexture );
+			g_pMenuManager->GetMenu ( iMenuClothesID )->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, ClothesInfo [ j ].szName );
 
 		g_pMenuManager->GetMenu ( MENU_ID_CHANGE_CLOTHES )->AddSubMenu ( g_pMenuManager->GetMenu ( iMenuClothesID ), i );
 

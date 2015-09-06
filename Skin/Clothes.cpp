@@ -1,6 +1,6 @@
 #include "Clothes.h"
 
-SPlayerClothingType sClothesNames [ PLAYER_CLOTHING_SLOTS ] =
+SPlayerClothingType sClothingType [ PLAYER_CLOTHING_SLOTS ] =
 {
 	{ "Torso" }, { "haircuts" }, { "Legs " }, { "Shoes" }, { "Lower left arm" },
 	{ "Upper left arm" }, { "Upper right arm" },{ "Lower right arm" }, { "Back top" },
@@ -253,6 +253,30 @@ static SPlayerClothing sSpecialClothing [ SPECIAL_CLOTHING_MAX ] =
 	{ "pimptr", "pimptr", 17, "Pimp Suit" }, { "garageleg", "garagetr", 17, "Racing Suit" },
 	{ "medictr", "medictr", 17, "Medic Uniform" }
 };
+
+const   SPlayerClothing  *CClothes::GetClothingGroupByName ( const char *szBodypartName )
+{
+	if ( szBodypartName == sClothingType [ 0 ].szName ) return sTorsoClothing;
+	if ( szBodypartName == sClothingType [ 1 ].szName ) return sHairClothing;
+	if ( szBodypartName == sClothingType [ 2 ].szName ) return sLegsClothing;
+	if ( szBodypartName == sClothingType [ 3 ].szName ) return sShoesClothing;
+	if ( szBodypartName == sClothingType [ 4 ].szName ) return sLeftLowerArmClothing;
+	if ( szBodypartName == sClothingType [ 5 ].szName ) return sLeftUpperArmClothing;
+	if ( szBodypartName == sClothingType [ 6 ].szName ) return sRightUpperArmClothing;
+	if ( szBodypartName == sClothingType [ 7 ].szName ) return sRightLowerArmClothing;
+	if ( szBodypartName == sClothingType [ 8 ].szName ) return sBackTopClothing;
+	if ( szBodypartName == sClothingType [ 9 ].szName ) return sLeftChestClothing;
+	if ( szBodypartName == sClothingType [ 10 ].szName ) return sRightChestClothing;
+	if ( szBodypartName == sClothingType [ 12 ].szName ) return sStomachClothing;
+	if ( szBodypartName == sClothingType [ 12 ].szName ) return sLowerBackClothing;
+	if ( szBodypartName == sClothingType [ 13 ].szName ) return sChainsClothing;
+	if ( szBodypartName == sClothingType [ 14 ].szName ) return sWatchesClothing;
+	if ( szBodypartName == sClothingType [ 15 ].szName ) return sGlassesClothing;
+	if ( szBodypartName == sClothingType [ 16 ].szName ) return sHatsClothing;
+	if ( szBodypartName == sClothingType [ 17 ].szName ) return sSpecialClothing;
+
+	return NULL;
+}
 
 const SPlayerClothing *CClothes::GetClothingGroup ( unsigned char ucType )
 {
