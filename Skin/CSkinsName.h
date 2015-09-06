@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 
-#define SPECIAL_MODEL_MAX 51
+#define SPECIAL_MODEL_MAX 46
 #define PED_MODEL_MAX 251
 
 struct SPedModel

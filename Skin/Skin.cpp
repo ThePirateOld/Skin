@@ -81,22 +81,52 @@ void CheckLimit ( int iMin, int iMax, int &iValue )
 	}
 }
 
-void RequestSpecialModel ( int channel, const char *szModel, int index )
+void RequestSpecialModel ( DWORD dwModelID, const char *szModel, DWORD dwChannel )
 {
-	DWORD dwFunc = 0x00409D10;
-	__asm
-	{
-		push	channel
-		push	szModel
-		push	index
-		call	dwFunc
-		add		esp, 0xC
+	if ( dwModelID < 0 )
+		return;
 
-	};
+	__asm push	dwChannel
+	__asm push	szModel
+	__asm push	dwModelID
+	__asm mov	eax, 00409D10h
+	__asm call  eax
+	__asm add	esp, 0xC
+}
+
+bool HasSpecialModelLoaded ( DWORD dwModelID )
+{
+	if ( dwModelID < 0 )
+		return false;
+
+	BOOL bReturn = 0;
+
+	__asm push   dwModelID
+	__asm mov	 eax, 00407F00h
+	__asm call   eax
+	__asm movzx  eax, al
+	__asm mov    bReturn, eax
+	__asm pop    eax
+
+	return bReturn;
+}
+
+void ReleaseSpecialModel ( DWORD dwModelID )
+{
+	if ( dwModelID < 0 )
+		return;
+
+	__asm push dwModelID
+	__asm mov eax, 00409C90h
+	__asm call eax
+	__asm add esp, 0x4
 }
 
 bool HasModelLoaded ( DWORD dwModelID )
 {
+	if ( dwModelID < 0 )
+		return false;
+
 	BOOL bReturn = 0;
 
 	__asm push   dwModelID
@@ -118,7 +148,18 @@ void RequestModel ( DWORD dwModelID )
 	__asm push  dwModelID
 	__asm mov	eax, 004087E0h
 	__asm call  eax
-	__asm add   esp, 8
+	__asm add   esp, 0x8
+}
+
+void ReleaseModel ( DWORD dwModelID )
+{
+	if ( dwModelID < 0 )
+		return;
+
+	__asm push dwModelID
+	__asm mov eax, 004089A0h
+	__asm call eax
+	__asm add esp, 0x4
 }
 
 void RequestAllModels ( void )
@@ -129,11 +170,14 @@ void RequestAllModels ( void )
 	__asm add   esp, 0x4
 }
 
-void SetModelIndex ( DWORD dwModelIndex )
+void SetModelIndex ( DWORD dwModelID )
 {
+	if ( dwModelID < 0 )
+		return;
+
 	__asm mov	edi, 00B7CD98h
 	__asm mov	ecx, [ edi ]
-	__asm push  dwModelIndex
+	__asm push  dwModelID
 	__asm mov	eax, 005E4880h
 	__asm call	eax
 }
@@ -147,23 +191,38 @@ namespace CallbackHandlers
 
 	void MenuPedSkins ( CMenu *pMenu, int iRow )
 	{
-		int iModel = sPedModel [ iRow ].uiPedID;
+		int iModel = std::atoi ( pMenu->GetSelectedRowByName ( 1 ) );
 
 		if ( pMenu->OnKeyPressed ( iRow ) )
 		{
-			if ( !HasModelLoaded ( iModel ) )
+			if ( iModel != NULL )
 			{
 				RequestModel ( iModel );
 				RequestAllModels ();
-			}
 
-			SetModelIndex ( iModel );
+				SetModelIndex ( iModel );
+				ReleaseModel ( iModel );
+			}
+			else
+			{
+				SetModelIndex ( iModel );
+			}
 		}
 	}
 
 	void MenuSpecialSkins ( CMenu *pMenu, int iRow )
 	{
+		if ( pMenu->OnKeyPressed ( iRow ) )
+		{
+			if ( !HasSpecialModelLoaded ( 290 ) )
+			{
+				RequestSpecialModel ( 290, pMenu->GetSelectedRowByName ( 1 ), 0 );
+				RequestAllModels ();
+			}
 
+			SetModelIndex ( 290 );
+			ReleaseSpecialModel ( 290 );
+		}
 	}
 
 	void MenuClothes ( CMenu *pMenu, int iRow )

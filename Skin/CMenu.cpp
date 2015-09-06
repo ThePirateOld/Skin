@@ -524,6 +524,7 @@ void CMenu::AddColumnItem ( int iColumnID, D3DCOLOR d3dColor, bool bSetValue, co
 		auto numItems = GetNumOfItems () ;
 		if ( numItems > m_RowStatus.size () )
 		{
+			m_bKeys.push_back ( false );
 			m_RowStatus [ numItems - 1 ] = true;
 			m_iCountItemsEnabled++;
 		}
@@ -690,22 +691,27 @@ void CMenu::SetEnabledRow ( int iRow, bool bActivate )
 
 bool CMenu::OnKeyPressed ( int iRow )
 {
-	if ( m_iCurrentRow == iRow )
+	static bool bKey;
+
+	if ( m_iCurrentRow == iRow &&
+		 SubMenu.InvokeMenu [ this ].bStat )
 	{
 		if ( GetAsyncKeyState ( VK_SPACE ) )
 		{
-			if ( m_bKeys [ iRow ] )
+			if ( bKey )
 			{
-				m_bKeys [ iRow ] = false;
+				bKey = false;
 				return true;
 			}
 		}
 		else
 		{
-			m_bKeys [ iRow ] = true;
+			if ( GetAsyncKeyState ( VK_RETURN ) )
+				bKey = false;
+			else
+				bKey = true;
 		}
 	}
-
 
 	return false;
 }

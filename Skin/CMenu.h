@@ -179,7 +179,7 @@ private:
 	bool m_bAtEnd;
 	bool m_bLockControls;
 
-	std::map<int, bool> m_bKeys;
+	std::vector<bool> m_bKeys;
 
 	void _UpdateItemsUp ( void );
 	void _UpdateItemsDown ( void );
