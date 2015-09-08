@@ -48,6 +48,9 @@ CMenuManager *g_pMenuManager = NULL;
 
 #define MENU_ID_CHANGE_STAT 23
 
+#define GetPlayerModelID( ped )  ( *( WORD * ) ( ( unsigned int ) ped + 0x22 ) )
+#define PlayerPed ( *( void** ) 0xB7CD98 )
+
 WNDPROC gameProc;
 LRESULT DefWndProc ( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam )
 {
@@ -179,7 +182,7 @@ void SetClothes ( const char* szTexture, const char* szModel, int textureType )
 	_asm
 	{
 		mov	edi, 00B7CD98h
-		mov	ecx, [ edi + 0x4 + 0x4 ] // (CPed) + (CPlayerData) + (CClothes)
+		mov	ecx, [ edi + 0x8 ] // (CPed) + (CPlayerData) + (CClothes)
 		push    textureType
 		push    szModel
 		push    szTexture
@@ -190,17 +193,110 @@ void SetClothes ( const char* szTexture, const char* szModel, int textureType )
 void RebuildChar ( void )
 {
 	DWORD dwFunc = 0x5A82C0;
-	DWORD dwThis = 0xB7CD98;
 
 	_asm
 	{
-		push    0
+		push 0
 		mov	edi, 00B7CD98h
 		mov esi, [ edi ]
-		push    esi
-		call    dwFunc
-		add     esp, 8
+		push esi
+		call dwFunc
+		add esp, 8
 	}
+}
+
+struct SClothesInfo
+{
+	DWORD dwModel;
+	DWORD dwTexture;
+};
+
+DWORD GetClothesInfoIndexFromBodyPart ( DWORD dwBodyPart )
+{
+	DWORD dwResult;
+
+	_asm
+	{
+		push dwBodyPart
+		mov eax, 005A7EA0h
+		call eax
+		cmp eax, 0Ah
+		jae NoModelFound		
+		mov dwResult, eax
+		jmp cnt
+	NoModelFound:
+		mov dwResult, 0
+	cnt:
+		pop eax
+	}
+
+	return dwResult;
+}
+
+void GetPlayerBodyPart ( DWORD dwBodyPart, SClothesInfo &clothes )
+{
+	DWORD dwModel = 0;
+	DWORD dwTexture;
+
+	DWORD dwInfo = GetClothesInfoIndexFromBodyPart ( dwBodyPart );
+
+	__asm
+	{
+		mov edi, 00B7CD98h
+		mov edi, [ edi + 8h ]
+		mov eax, dwBodyPart
+		mov edx, [ edi + eax * 4 + 28h ]
+		mov dwTexture, edx
+		mov eax, dwInfo
+		cmp eax, 0
+		je NoModelFound
+		mov eax, [ edi + eax * 4 ]
+		mov dwModel, eax
+	}
+
+NoModelFound:
+	clothes.dwModel = dwModel;
+	clothes.dwTexture = dwTexture;
+}
+
+BOOL HasClothBought ( DWORD dwTexture )
+{
+	BOOL bReturn = 0;
+
+	__asm
+	{
+		push dwTexture
+		mov eax, 0049B5E0h
+		call eax
+		movzx eax, al
+		mov bReturn, eax
+		pop eax
+	}
+
+	return bReturn;
+}
+
+
+DWORD GetShoppingItemInPool ( int index )
+{
+	DWORD dwTexture;
+
+	_asm 
+	{
+		mov	edx, index
+		mov edx, 00A9A318h [ edx * 4 ]
+		mov	dwTexture, edx
+	}
+
+	return dwTexture;
+}
+
+typedef void ( *PrintNow )( const char* text, int time, bool addToBrief );
+PrintNow print;
+void GTAfunc_showStyledText (  char *text, int time, bool addToBrief )
+{
+	( ( void ( __cdecl* )(  char* text, int time, bool addToBrief ) )( 0x69F1E0 )) ( text, time, addToBrief );
+
 }
 
 #define HOOKPOS_CClothes_RebuildPlayer  0x5A82C0
@@ -535,14 +631,18 @@ void _declspec( naked ) HOOK_CStreamingLoadRequestedModels ()
 		jmp     RETURN_CStreamingLoadRequestedModels
 
 		// Skip LoadRequestedModels
-		skip :
+		skip:
 		popad
 		jmp     RETURN_CStreamingLoadRequestedModelsB
 	}
 }
 
-
+#include "game\CPed.h"
+CPed *pPed = NULL;
 #include <stdlib.h>
+
+#include <sstream>
+
 namespace CallbackHandlers
 {
 	void MenuNewSkins ( CMenu *pMenu, int iRow )
@@ -595,15 +695,12 @@ namespace CallbackHandlers
 	{
 		if ( pMenu->OnKeyPressed ( iRow ) )
 		{
-
-
-			auto ptr = ( DWORD* ) 0xB6F612;
-			int *as = ( int * ) ( *ptr + 0x22 );
-			
+			if ( GetPlayerModelID ( PlayerPed ) == NULL )
+			{
 				const SPlayerClothing *ClothesInfo = CClothes::GetClothingGroupByName ( pMenu->GetColumnName ( 0 ) );
 				SetClothes ( ClothesInfo [ iRow ].szTexture, ClothesInfo [ iRow ].szModel, ClothesInfo [ iRow ].uiBodyPart );
 				RebuildChar ();
-			
+			}
 		}
 	}
 
@@ -611,19 +708,96 @@ namespace CallbackHandlers
 	{
 		static int iFat = 0, iMuscle = 0;
 
+		if ( GetPlayerModelID ( PlayerPed ) != NULL )
+			return;
+
+		SClothesInfo sClothes,s;
+		GetPlayerBodyPart ( iMuscle, sClothes );
+
+		 s.dwTexture = ( *( DWORD * ) ( ( unsigned int ) PlayerPed + 0x8 + 0x28 ) );
+		static char szItem [ 128 ];
+		
+		sprintf ( szItem, "%i %i", sClothes.dwTexture, pPed->m_pPlayerData->m_pClothes->m_aTextureKeys[ iMuscle ] );
+		GTAfunc_showStyledText ( szItem, 100, false );
+
 		if ( iRow == 0 )
 		{
-			CheckLimit ( 0, 1000, iMuscle );
+			CheckLimit ( 0, 17, iMuscle );
 		}
 		else if ( iRow == 1 )
 		{
 			CheckLimit ( 0, 1000, iFat );
 		}
 
-		pMenu->SetNewItem ( 1, 0, "%i", iMuscle );
-		pMenu->SetNewItem ( 1, 1, "%i", iFat );
+		pMenu->SetNewItem ( 1, 0, "%i", sClothes.dwModel );
+		pMenu->SetNewItem ( 1, 1, "%i", pPed->m_pPlayerData->m_pClothes->m_aModelKeys [ GetClothesInfoIndexFromBodyPart ( iMuscle ) ] );
+	
 	}
 };
+
+void _patch ( void* pAddress, void* pData, int iSize )
+{
+	unsigned long dwProtect [ 2 ];
+	VirtualProtect ( pAddress, iSize, PAGE_EXECUTE_READWRITE, &dwProtect [ 0 ] );
+	memcpy ( pAddress, pData, iSize );
+	VirtualProtect ( pAddress, iSize, dwProtect [ 0 ], &dwProtect [ 1 ] );
+}
+
+void _nop ( void* pAddress, int iSize )
+{
+	unsigned long dwProtect [ 2 ];
+	VirtualProtect ( pAddress, iSize, PAGE_EXECUTE_READWRITE, &dwProtect [ 0 ] );
+	memset ( pAddress, 0x90, iSize );
+	VirtualProtect ( pAddress, iSize, dwProtect [ 0 ], &dwProtect [ 1 ] );
+}
+
+bool _check ( void* pAddress, unsigned char cByte )
+{
+	unsigned long dwProtect [ 2 ];
+	unsigned char cValue = cByte;
+	VirtualProtect ( pAddress, 1, PAGE_EXECUTE_READ, &dwProtect [ 0 ] );
+	memcpy ( &cValue, pAddress, 1 );
+	VirtualProtect ( pAddress, 1, dwProtect [ 0 ], &dwProtect [ 1 ] );
+	return ( cValue == cByte );
+}
+
+
+long dwReset3DReturn;
+#define patch(a, v, s) _patch((void*)(a), (void*)(v), (s))
+#define nop(a, s) _nop((void*)(a), (s))
+
+void _Reset3D ()
+{
+	IDirect3DDevice9* pD3DDev = *( IDirect3DDevice9** ) 0xC97C28;
+	OnLostDevice;
+	return;
+}
+
+void _Reset3DA ()
+{
+	IDirect3DDevice9* pD3DDev = *( IDirect3DDevice9** ) 0xC97C28;
+	OnResetDevice (); 
+	return;
+}
+
+void __declspec( naked ) Reset3D ()
+{
+	__asm
+	{
+		pushad;
+		call _Reset3D;
+		popad;
+		push 0xC9C040;
+		push eax;
+		call [ ecx + 0x40 ];
+		pushad;
+		call _Reset3DA;
+		popad;
+		mov edi, dwReset3DReturn;
+		push edi;
+		ret;
+	}
+}
 
 void RegisterFuncs ( void )
 {
@@ -637,6 +811,32 @@ void RegisterFuncs ( void )
 	InitGameFunc.RegisterFuncAfter ( SkinInit );
 	//ReInitGameFunc.RegisterFuncAfter ( ReInit );
 	DrawHUDFunc.RegisterFuncAfter ( Draw );
+	/*char cBuffer [ 256 ];
+	const unsigned char cJumpNear = 0xEB;
+	const unsigned char cJumpShort = 0xE9;
+	const unsigned char cMov = 0xB9;
+	const unsigned char cCX = 0x89;
+	unsigned long pFunc;
+
+	
+	if ( _check ( ( void* ) 0x7F8704, 0x68) )
+	{
+		pFunc = ( unsigned long ) &Reset3D - 0x7F8709;
+		dwReset3DReturn = 0x7F870D;
+		patch ( 0x7F8704, &cJumpShort, 1 );
+		patch ( 0x7F8705, &pFunc, 4 );
+	}
+	else
+		if ( _check ( ( void* ) 0x7F86C4, 0x68 ) )
+		{
+			pFunc = ( unsigned long ) &Reset3D - 0x7F86C9;
+			dwReset3DReturn = 0x7F86CD;
+			patch ( 0x7F86C4, &cJumpShort, 1 );
+			patch ( 0x7F86C5, &pFunc, 4 );
+		}
+		*/
+		//injector::MakeCALL ( 0x7F8705, pFunc );
+	
 	ResetDevice.RegisterFuncBefore ( OnLostDevice );
 	ResetDevice.RegisterFuncAfter ( OnResetDevice );
 	//TerminateGame.RegisterFuncAfter ( Remove );
@@ -778,7 +978,11 @@ void Draw ()
 		int *as = ( int * ) ( *ptr + 0x598 );
 		*as = 1;
 
+		pPed = *( CPed** ) 0x00B6F5F0;
+
 		g_pMenuManager->Draw ();
+
+		
 	}
 }
 
