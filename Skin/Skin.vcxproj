@@ -161,6 +161,7 @@
     <ClInclude Include="CGraphics.h" />
     <ClInclude Include="CKey.h" />
     <ClInclude Include="CKeyBoard.h" />
+    <ClInclude Include="CKeyGen.h" />
     <ClInclude Include="Clothes.h" />
     <ClInclude Include="CMenu.h" />
     <ClInclude Include="CSkinsName.h" />
@@ -186,6 +187,7 @@
     <ClCompile Include="CGraphics.cpp" />
     <ClCompile Include="CKey.cpp" />
     <ClCompile Include="CKeyBoard.cpp" />
+    <ClCompile Include="CKeyGen.cpp" />
     <ClCompile Include="Clothes.cpp" />
     <ClCompile Include="CMenu.cpp" />
     <ClCompile Include="CSkinsName.cpp" />

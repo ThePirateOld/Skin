@@ -90,6 +90,9 @@
     <ClInclude Include="CKey.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CKeyGen.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -117,6 +120,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CKey.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CKeyGen.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -45,8 +45,8 @@ CMenuManager *g_pMenuManager = NULL;
 #define MENU_ID_CLOTHES_GLASSES 20
 #define MENU_ID_CLOTHES_HATS 21
 #define MENU_ID_CLOTHES_SPECIAL 22
-
-#define MENU_ID_CHANGE_STAT 23
+#define MENU_ID_REMOVE_CLOTHES 23
+#define MENU_ID_CHANGE_STAT 24
 
 #define GetPlayerModelID( ped )  ( *( WORD * ) ( ( unsigned int ) ped + 0x22 ) )
 #define PlayerPed ( *( void** ) 0xB7CD98 )
@@ -82,27 +82,33 @@ void RequestSpecialModel ( DWORD dwModelID, const char *szModel, DWORD dwChannel
 	if ( dwModelID < 0 )
 		return;
 
-	__asm push	dwChannel
-	__asm push	szModel
-	__asm push	dwModelID
-	__asm mov	eax, 00409D10h
-	__asm call  eax
-	__asm add	esp, 0xC
+	__asm
+	{
+		push	dwChannel
+		push	szModel
+		push	dwModelID
+		mov		eax, 00409D10h
+		call	eax
+		add		esp, 0xC
+	}
 }
 
-bool HasSpecialModelLoaded ( DWORD dwModelID )
+BOOL HasSpecialModelLoaded ( DWORD dwModelID )
 {
 	if ( dwModelID < 0 )
 		return false;
 
-	BOOL bReturn = 0;
+	BOOL bReturn;
 
-	__asm push   dwModelID
-	__asm mov	 eax, 00407F00h
-	__asm call   eax
-	__asm movzx  eax, al
-	__asm mov    bReturn, eax
-	__asm pop    eax
+	__asm
+	{
+		push   dwModelID
+		mov		eax, 00407F00h
+		call   eax
+		movzx  eax, al
+		mov    bReturn, eax
+		pop    eax
+	}
 
 	return bReturn;
 }
@@ -112,55 +118,77 @@ void ReleaseSpecialModel ( DWORD dwModelID )
 	if ( dwModelID < 0 )
 		return;
 
-	__asm push dwModelID
-	__asm mov eax, 00409C90h
-	__asm call eax
-	__asm add esp, 0x4
+	__asm
+	{
+		push	dwModelID
+		mov		eax, 00409C90h
+		call	eax
+		add		esp, 0x4
+	}
 }
 
-BOOL HasModelLoaded ( int iModelID )
-{
-	DWORD dwFunc = 0x4044C0;
-	DWORD ModelID = iModelID;
-	BOOL bReturn = 0;
 
-	_asm
+BOOL HasModelLoaded ( DWORD dwModel )
+{
+	if ( dwModel < 0 )
+		return false;
+
+	BOOL bReturn;
+
+	__asm
 	{
-		push    ModelID
-		call    dwFunc
-		movzx   eax, al
-		mov     bReturn, eax
-		pop     eax
+		push	dwModel
+		mov		eax, 004044C0h
+		call	eax
+		movzx	eax, al
+		mov		bReturn, eax
+		pop		eax
 	}
 
 	return bReturn;
 }
 
-void RequestModel ( int iModelID,int iLoadingStream )
+void RequestModel ( DWORD dwModelID, DWORD dwFlag )
 {
-	_asm push iLoadingStream
-	_asm push iModelID
-	_asm mov edx, 0x4087E0
-	_asm call edx
-	_asm pop edx
-	_asm pop edx
+	if ( dwModelID < 0 )
+		return;
+
+	__asm
+	{
+		push	dwFlag
+		push	dwModelID
+		mov		edx, 004087E0h
+		call	edx
+		pop		edx
+		pop		edx
+	}
 }
 
-void ReleaseModel ( int iModelID )
+void ReleaseModel ( DWORD dwModelID )
 {
-	_asm push iModelID
-	_asm mov edx, 0x4089A0
-	_asm call edx
-	_asm pop edx
+	if ( dwModelID < 0 )
+		return;
+
+	__asm
+	{
+		push	dwModelID
+		mov		eax, 0x4089A0
+		call	eax
+		pop		edx
+	}
 }
 
-void RequestAllModels ( bool bOnlyPriorityModels )
+void RequestAllModels ( bool bFlags )
 {
-	DWORD dwOnlyPriorityModels = bOnlyPriorityModels;
-	__asm push  dwOnlyPriorityModels;
-	__asm mov	eax, 0040EA10h
-	__asm call  eax
-	__asm add   esp, 0x4
+	DWORD dwFlags = bFlags;
+
+	__asm
+	{
+		push	dwFlags;
+		mov		eax, 0040EA10h
+		call	eax
+		add		esp, 0x4
+	}
 }
 
 void SetModelIndex ( DWORD dwModelID )
@@ -168,40 +196,41 @@ void SetModelIndex ( DWORD dwModelID )
 	if ( dwModelID < 0 )
 		return;
 
-	__asm mov	edi, 00B7CD98h
-	__asm mov	ecx, [ edi ]
-	__asm push  dwModelID
-	__asm mov	eax, 005E4880h
-	__asm call	eax
+	__asm
+	{
+		mov		edi, 00B7CD98h
+		mov		ecx, [ edi ]
+		push	dwModelID
+		mov		eax, 005E4880h
+		call	eax
+	}
 }
 
 void SetClothes ( const char* szTexture, const char* szModel, int textureType )
 {
-	DWORD dwFunc = 0x5A8080;
-
-	_asm
+	__asm
 	{
-		mov	edi, 00B7CD98h
-		mov	ecx, [ edi + 0x8 ] // (CPed) + (CPlayerData) + (CClothes)
-		push    textureType
-		push    szModel
-		push    szTexture
-		call    dwFunc
+		mov		edi, 00B7CD98h
+		mov		ecx, [ edi + 0x8 ]
+		push	textureType
+		push	szModel
+		push	szTexture
+		mov		eax, 005A8080h
+		call	eax
 	}
 }
 
 void RebuildChar ( void )
 {
-	DWORD dwFunc = 0x5A82C0;
-
-	_asm
+	__asm
 	{
-		push 0
-		mov	edi, 00B7CD98h
-		mov esi, [ edi ]
-		push esi
-		call dwFunc
-		add esp, 8
+		push	0
+		mov		edi, 00B7CD98h
+		mov		esi, [ edi ]
+		push	esi
+		mov		eax, 005A82C0h
+		call	eax
+		add		esp, 0x8
 	}
 }
 
@@ -213,21 +242,20 @@ struct SClothesInfo
 
 DWORD GetClothesInfoIndexFromBodyPart ( DWORD dwBodyPart )
 {
-	DWORD dwResult;
+	DWORD dwResult = 0;
 
-	_asm
+	__asm
 	{
-		push dwBodyPart
-		mov eax, 005A7EA0h
-		call eax
-		cmp eax, 0Ah
-		je NoModelFound		
-		mov dwResult, eax
-		jmp cnt
-	NoModelFound:
-		mov dwResult, -1
+		push	dwBodyPart
+		mov		eax, 005A7EA0h
+		call	eax
+
+		cmp		eax, 0Ah
+		je cnt
+
+		mov		dwResult, eax
 	cnt:
-		pop eax
+		pop		eax
 	}
 
 	return dwResult;
@@ -236,25 +264,27 @@ DWORD GetClothesInfoIndexFromBodyPart ( DWORD dwBodyPart )
 void GetPlayerBodyPart ( DWORD dwBodyPart, SClothesInfo &clothes )
 {
 	DWORD dwModel = 0;
-	DWORD dwTexture;
+	DWORD dwTexture = 0;
 
 	DWORD dwInfo = GetClothesInfoIndexFromBodyPart ( dwBodyPart );
 
 	__asm
 	{
-		mov edi, 00B7CD98h
-		mov edi, [ edi + 8h ]
-		mov eax, dwBodyPart
-		mov edx, [ edi + eax * 4 + 28h ]
-		mov dwTexture, edx
-		mov eax, dwInfo
-		cmp eax, -1
-		je NoModelFound
-		mov eax, [ edi + eax * 4 ]
-		mov dwModel, eax
+		mov		edi, 00B7CD98h
+		mov		edi, [ edi + 8h ]
+		mov		eax, dwBodyPart
+		mov		edx, [ edi + eax * 4 + 28h ]
+		mov		dwTexture, edx
+		mov		eax, dwInfo
+
+		cmp		edx, 0x0
+		je cnt
+
+		mov		eax, [ edi + eax * 4 ]
+		mov		dwModel, eax
 	}
 
-NoModelFound:
+cnt:
 	clothes.dwModel = dwModel;
 	clothes.dwTexture = dwTexture;
 }
@@ -265,27 +295,26 @@ BOOL HasClothBought ( DWORD dwTexture )
 
 	__asm
 	{
-		push dwTexture
-		mov eax, 0049B5E0h
-		call eax
-		movzx eax, al
-		mov bReturn, eax
-		pop eax
+		push	dwTexture
+		mov		eax, 0049B5E0h
+		call	eax
+		movzx	eax, al
+		mov		bReturn, eax
+		pop		eax
 	}
 
 	return bReturn;
 }
 
-
 DWORD GetShoppingItemInPool ( int index )
 {
 	DWORD dwTexture;
 
-	_asm 
+	__asm 
 	{
-		mov	edx, index
-		mov edx, 00A9A318h [ edx * 4 ]
-		mov	dwTexture, edx
+		mov		edx, index
+		mov		edx, 00A9A318h [ edx * 4 ]
+		mov		dwTexture, edx
 	}
 
 	return dwTexture;
@@ -415,22 +444,22 @@ void _declspec( naked ) HOOK_LoadingPlayerImgDir ()
 //
 ////////////////////////////////////////////////
 
-	struct CStreamingInfo
-	{
-		USHORT    usNext;
-		USHORT    usPrev;
+struct CStreamingInfo
+{
+	USHORT    usNext;
+	USHORT    usPrev;
 
-		USHORT  usNextOnce;         
-		UCHAR   ucFlags;         // 0x12 when loading, 0x02 when finished loading
-		UCHAR   ucImgId;
+	USHORT  usNextOnce;
+	UCHAR   ucFlags;         // 0x12 when loading, 0x02 when finished loading
+	UCHAR   ucImgId;
 
-		int     iBlockOffset;
-		int     iBlockCount;
-		UINT    uiLoadflag;         // 0-not loaded  2-requested  3-loaded  1-processed
-	};
+	int     iBlockOffset;
+	int     iBlockCount;
+	UINT    uiLoadflag;         // 0-not loaded  2-requested  3-loaded  1-processed
+};
 
-	int     iReturnFileId;
-	char*   pReturnBuffer;
+int     iReturnFileId;
+char*   pReturnBuffer;
 
 
 
@@ -557,8 +586,8 @@ void _declspec( naked ) HOOK_CallCStreamingInfoAddToList ()
 {
 	_asm
 	{
-		pushad
-		push    ecx
+			pushad
+			push    ecx
 			push    ebx
 			call    OnCallCStreamingInfoAddToList
 			add     esp, 4 * 2
@@ -642,7 +671,7 @@ CPed *pPed = NULL;
 #include <stdlib.h>
 
 #include <sstream>
-
+#include "CKeyGen.h"
 namespace CallbackHandlers
 {
 	void MenuNewSkins ( CMenu *pMenu, int iRow )
@@ -693,13 +722,53 @@ namespace CallbackHandlers
 
 	void MenuClothes ( CMenu *pMenu, int iRow )
 	{
-		if ( pMenu->OnKeyPressed ( iRow ) )
+		/*if ( g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES ) == pMenu )
 		{
-			if ( GetPlayerModelID ( PlayerPed ) == NULL )
+			//g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES )->ClearItemsFromColumn ( 0 );
+
+			for ( size_t i = 0; i < PLAYER_CLOTHING_SLOTS; i++ )
 			{
-				const SPlayerClothing *ClothesInfo = CClothes::GetClothingGroupByName ( pMenu->GetColumnName ( 0 ) );
-				SetClothes ( ClothesInfo [ iRow ].szTexture, ClothesInfo [ iRow ].szModel, ClothesInfo [ iRow ].uiBodyPart );
-				RebuildChar ();
+				SClothesInfo sClothes;
+				GetPlayerBodyPart ( i, sClothes );
+
+				//for ( size_t j = 0; j < CClothes::GetClothingGroupMax ( i ); j++ )
+				//{
+					//if ( sClothes.dwModel == CKeyGen::GetUppercaseKey ( CClothes::GetClothingGroup ( i ) [ j ].szModel ) )
+					//{
+				g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES )->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, sClothingType [ i ].szName );
+				//}
+			//}
+			}
+		}*/
+		//else
+		//{
+			if ( pMenu->OnKeyPressed ( iRow ) )
+			{
+				if ( GetPlayerModelID ( PlayerPed ) == NULL )
+				{
+					const SPlayerClothing *ClothesInfo = CClothes::GetClothingGroupByName ( pMenu->GetColumnName ( 0 ) );
+					SetClothes ( ClothesInfo [ iRow ].szTexture, ClothesInfo [ iRow ].szModel, ClothesInfo [ iRow ].uiBodyPart );
+					RebuildChar ();
+				}
+			}
+		//}
+	}
+	 bool bs = true;
+	void RemoveClothes ( CMenu *pMenu, int iRow )
+	{
+		
+		for ( size_t i = 0; i < PLAYER_CLOTHING_SLOTS; i++ )
+		{
+			SClothesInfo sClothes;
+			GetPlayerBodyPart ( i, sClothes );
+
+			for ( size_t j = 0; j < CClothes::GetClothingGroupMax ( i ); j++ )
+			{
+				if ( sClothes.dwTexture == CKeyGen::GetUppercaseKey ( CClothes::GetClothingGroup ( i ) [ j ].szTexture ) )
+				{
+					pMenu->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, sClothingType [ i ].szName );
+					break;
+				}	
 			}
 		}
 	}
@@ -716,8 +785,8 @@ namespace CallbackHandlers
 
 		 s.dwTexture = ( *( DWORD * ) ( ( unsigned int ) PlayerPed + 0x8 + 0x28 ) );
 		static char szItem [ 128 ];
-		
-		sprintf ( szItem, "%i %i", sClothes.dwTexture, pPed->m_pPlayerData->m_pClothes->m_aTextureKeys[ iMuscle ] );
+		auto pKey = CKeyGen::GetUppercaseKey ( CClothes::GetClothingGroup ( iMuscle ) [ 0 ].szModel );
+		sprintf ( szItem, "%i %i", sClothes.dwModel, pKey);
 		GTAfunc_showStyledText ( szItem, 100, false );
 
 		if ( iRow == 0 )
@@ -731,7 +800,6 @@ namespace CallbackHandlers
 
 		pMenu->SetNewItem ( 1, 0, "%i", sClothes.dwModel );
 		pMenu->SetNewItem ( 1, 1, "%i", pPed->m_pPlayerData->m_pClothes->m_aModelKeys [ GetClothesInfoIndexFromBodyPart ( iMuscle ) ] );
-	
 	}
 };
 
@@ -844,7 +912,6 @@ void RegisterFuncs ( void )
 
 void SkinInit ()
 {
-	
 	g_pMenuManager = new CMenuManager ();
 
 	if ( !g_pMenuManager )
@@ -853,7 +920,7 @@ void SkinInit ()
 	if ( FAILED ( g_pMenuManager->InitializeDeviceObjs ( *( IDirect3DDevice9** ) 0x00C97C28 ) ) )
 		return;
 
-	for ( size_t i = 0; i < 24; i++ )
+	for ( size_t i = 0; i < 25; i++ )
 	{
 		g_pMenuManager->AddMenu ( i );
 
@@ -888,7 +955,7 @@ void SkinInit ()
 		g_pMenuManager->GetMenu ( i )->SetEventHandler ( CallbackHandlers::MenuClothes );
 
 	g_pMenuManager->GetMenu ( MENU_ID_CHANGE_STAT )->SetEventHandler ( CallbackHandlers::MenuStat );
-
+	
 	//----------- New Skins
 	g_pMenuManager->GetMenu ( MENU_ID_NEW_SKINS )->AddColumn ( 0, "New Skins", 200 );
 
@@ -952,6 +1019,14 @@ void SkinInit ()
 		g_pMenuManager->GetMenu ( MENU_ID_CHANGE_CLOTHES )->AddSubMenu ( g_pMenuManager->GetMenu ( iMenuClothesID ), i );
 
 	}
+
+	g_pMenuManager->GetMenu ( MENU_ID_CHANGE_CLOTHES )->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, "Remove Clothes" );
+	g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES )->AddColumn ( 0, "Remove Clothes", 200, D3DCOLOR_RGBA ( 255, 255, 255, 255 ) );
+
+	g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES )->SetEventHandler ( CallbackHandlers::RemoveClothes );
+
+	g_pMenuManager->GetMenu ( MENU_ID_CHANGE_CLOTHES )->AddSubMenu ( g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES ), 18 );
+
 	//-----------
 
 	//----------- Stat
@@ -981,8 +1056,7 @@ void Draw ()
 		pPed = *( CPed** ) 0x00B6F5F0;
 
 		g_pMenuManager->Draw ();
-
-		
+		g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES )->ClearItemsFromColumn ( 0 );
 	}
 }
 

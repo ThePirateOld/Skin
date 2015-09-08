@@ -176,7 +176,7 @@ CMenu::CMenu ( void ) : m_iPageSize ( 19 ), m_iMaxItems ( 255 )
 	m_bShowLines = m_bShowScrollbar = true;
 	m_bLockControls = false;
 
-	m_iCurrentRow = m_iNexSpace = 0;
+	m_iCurrentRow = m_iNexSpace = m_iCountItemsEnabled =0;
 	m_iOldRow = m_iOldRowCount = -1;
 
 	SSubMenuAddon::SInvokeMenu sInvoke;
@@ -219,7 +219,11 @@ void CMenu::Draw ( void )
 		return;
 
 	if ( SubMenu.InvokeMenu [ this ].bStat )
+
 	{
+		if ( m_pEventHandler )
+			m_pEventHandler ( this, m_iCurrentRow );
+
 		if ( m_iPageSize > m_RowStatus.size () )
 		{
 			m_iPageSize = m_RowStatus.size ();
@@ -351,9 +355,6 @@ void CMenu::Draw ( void )
 				}
 			}
 		}
-
-		if ( m_pEventHandler )
-			m_pEventHandler ( this, m_iCurrentRow );
 
 		static bool bKey;
 		for ( size_t i = 0; i < SubMenu.Addon [ this ].size (); i++ )
@@ -591,6 +592,16 @@ void CMenu::ClearItemsFromColumn ( int iColumnID )
 		m_ColumnAddon [ iColumnID ]->ItemAddon.sItemName.clear ();
 		m_ColumnAddon [ iColumnID ]->ItemAddon.d3dColor.clear ();
 	}
+
+	
+	if ( !GetSize( ))
+	{
+		m_iCountItemsEnabled = 0;
+		m_iCurrentRow = m_iNexSpace = 0;
+		m_iOldRow = m_iOldRowCount = -1;
+
+		m_RowStatus.clear ();
+	}
 }
 
 void CMenu::ClearAllColumns ( void )
@@ -720,13 +731,18 @@ bool CMenu::OnKeyPressed ( int iRow )
 
 void CMenu::SetNewItem ( int iColumnID, int iRow, const char *szItem, ... )
 {
-	char szBuffer [ 1024 ];
-	va_list ap;
-	va_start ( ap, szItem );
-	vsnprintf ( szBuffer, 1024, szItem, ap );
-	va_end ( ap );
+	if ( szItem )
+	{
+		char szBuffer [ 1024 ];
+		va_list ap;
+		va_start ( ap, szItem );
+		vsnprintf ( szBuffer, 1024, szItem, ap );
+		va_end ( ap );
 
-	m_ColumnAddon [ iColumnID ]->ItemAddon.sItemName [ iRow ] = szBuffer;
+
+		m_ColumnAddon [ iColumnID ]->ItemAddon.sItemName [ iRow ] = szBuffer;
+	}
+	else m_ColumnAddon [ iColumnID ]->ItemAddon.sItemName [ iRow ] = szItem ;
 }
 
 void CMenu::SetColor ( SMenuColor sColor )
