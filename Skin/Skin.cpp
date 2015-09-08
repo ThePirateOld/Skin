@@ -221,11 +221,11 @@ DWORD GetClothesInfoIndexFromBodyPart ( DWORD dwBodyPart )
 		mov eax, 005A7EA0h
 		call eax
 		cmp eax, 0Ah
-		jae NoModelFound		
+		je NoModelFound		
 		mov dwResult, eax
 		jmp cnt
 	NoModelFound:
-		mov dwResult, 0
+		mov dwResult, -1
 	cnt:
 		pop eax
 	}
@@ -248,7 +248,7 @@ void GetPlayerBodyPart ( DWORD dwBodyPart, SClothesInfo &clothes )
 		mov edx, [ edi + eax * 4 + 28h ]
 		mov dwTexture, edx
 		mov eax, dwInfo
-		cmp eax, 0
+		cmp eax, -1
 		je NoModelFound
 		mov eax, [ edi + eax * 4 ]
 		mov dwModel, eax
