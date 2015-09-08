@@ -722,26 +722,27 @@ namespace CallbackHandlers
 
 	void MenuClothes ( CMenu *pMenu, int iRow )
 	{
-		/*if ( g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES ) == pMenu )
+		if ( g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES ) == pMenu )
 		{
-			//g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES )->ClearItemsFromColumn ( 0 );
+			g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES )->ClearItemsFromColumn ( 0 );
 
 			for ( size_t i = 0; i < PLAYER_CLOTHING_SLOTS; i++ )
 			{
 				SClothesInfo sClothes;
 				GetPlayerBodyPart ( i, sClothes );
 
-				//for ( size_t j = 0; j < CClothes::GetClothingGroupMax ( i ); j++ )
-				//{
-					//if ( sClothes.dwModel == CKeyGen::GetUppercaseKey ( CClothes::GetClothingGroup ( i ) [ j ].szModel ) )
-					//{
-				g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES )->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, sClothingType [ i ].szName );
-				//}
-			//}
+				for ( size_t j = 0; j < CClothes::GetClothingGroupMax ( i ); j++ )
+				{
+					if ( sClothes.dwTexture == CKeyGen::GetUppercaseKey ( CClothes::GetClothingGroup ( i ) [ j ].szTexture ) )
+					{
+						pMenu->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, sClothingType [ i ].szName );
+						break;
+					}
+				}
 			}
-		}*/
-		//else
-		//{
+		}
+		else
+		{
 			if ( pMenu->OnKeyPressed ( iRow ) )
 			{
 				if ( GetPlayerModelID ( PlayerPed ) == NULL )
@@ -750,25 +751,6 @@ namespace CallbackHandlers
 					SetClothes ( ClothesInfo [ iRow ].szTexture, ClothesInfo [ iRow ].szModel, ClothesInfo [ iRow ].uiBodyPart );
 					RebuildChar ();
 				}
-			}
-		//}
-	}
-	 bool bs = true;
-	void RemoveClothes ( CMenu *pMenu, int iRow )
-	{
-		
-		for ( size_t i = 0; i < PLAYER_CLOTHING_SLOTS; i++ )
-		{
-			SClothesInfo sClothes;
-			GetPlayerBodyPart ( i, sClothes );
-
-			for ( size_t j = 0; j < CClothes::GetClothingGroupMax ( i ); j++ )
-			{
-				if ( sClothes.dwTexture == CKeyGen::GetUppercaseKey ( CClothes::GetClothingGroup ( i ) [ j ].szTexture ) )
-				{
-					pMenu->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, sClothingType [ i ].szName );
-					break;
-				}	
 			}
 		}
 	}
@@ -1023,7 +1005,7 @@ void SkinInit ()
 	g_pMenuManager->GetMenu ( MENU_ID_CHANGE_CLOTHES )->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, "Remove Clothes" );
 	g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES )->AddColumn ( 0, "Remove Clothes", 200, D3DCOLOR_RGBA ( 255, 255, 255, 255 ) );
 
-	g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES )->SetEventHandler ( CallbackHandlers::RemoveClothes );
+	g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES )->SetEventHandler ( CallbackHandlers::MenuClothes );
 
 	g_pMenuManager->GetMenu ( MENU_ID_CHANGE_CLOTHES )->AddSubMenu ( g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES ), 18 );
 
@@ -1056,7 +1038,6 @@ void Draw ()
 		pPed = *( CPed** ) 0x00B6F5F0;
 
 		g_pMenuManager->Draw ();
-		g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES )->ClearItemsFromColumn ( 0 );
 	}
 }
 
