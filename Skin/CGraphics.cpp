@@ -305,7 +305,7 @@ HRESULT CD3DFont::Initialize ( IDirect3DDevice9 * pD3Ddev )
 	HBITMAP hbmBitmap = CreateDIBSection ( hDC, &bmi, DIB_RGB_COLORS, ( void** ) &pBitmapBits, NULL, 0 );
 	SetMapMode ( hDC, MM_TEXT );
 
-	HFONT hFont = CreateFontA ( -MulDiv ( m_fontHeight, GetDeviceCaps ( hDC, LOGPIXELSY ), 72 ), 0, 0, 0, ( m_dwCreateFlags&FCR_BOLD ? FW_BOLD : FW_NORMAL ), m_dwCreateFlags&FCR_ITALICS, false, false,
+	HFONT hFont = CreateFontA ( -MulDiv ( m_fontHeight, GetDeviceCaps ( hDC, LOGPIXELSY ), 72 ), 0, 0, 0,  m_dwCreateFlags, m_dwCreateFlags&FCR_ITALICS, false, false,
 								ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY,
 								VARIABLE_PITCH, m_szFontName );
 
@@ -625,7 +625,8 @@ CD3DRender::CD3DRender ( int numVertices )
 
 CD3DRender::~CD3DRender ( )
 {
-	this->Invalidate ( );
+	this->Invalidate ( ); 
+	CD3DState::Invalidate ();
 }
 
 HRESULT CD3DRender::Initialize ( IDirect3DDevice9 *pD3Ddevevice )
@@ -648,7 +649,7 @@ HRESULT CD3DRender::Invalidate ( )
 {
 	SAFE_RELEASE ( m_pD3Dbuf );
 	m_pVertex = NULL;
-	CD3DState::Invalidate ( );
+	
 	m_canRender = false;
 
 	return S_OK;

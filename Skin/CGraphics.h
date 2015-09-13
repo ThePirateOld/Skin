@@ -127,12 +127,12 @@ public:
 	HRESULT Initialize ( IDirect3DDevice9 *pD3Ddev );
 	HRESULT Invalidate ( );
 
-	HRESULT Print ( float x, float y, DWORD colour, const char *szText ,DWORD dwFlags = 0 );
+	HRESULT Print ( float x, float y, DWORD colour, const char *szText, DWORD dwFlags = 0);
 	HRESULT PrintShadow ( float x, float y, DWORD colour, DWORD dwFlags, const char *szText,... );
 
 	void CutString ( int iWidth, std::string &sString );
 
-	int GetWidth ( const char* );
+	int GetWidth ( const char*string );
 	int GetHeight ( void );
 
 private:

@@ -51,7 +51,7 @@ struct SMenuColor
 {
 	D3DCOLOR d3dBackGround;
 	D3DCOLOR d3dEnabledItem;
-	D3DCOLOR d3dSelecItemBar;
+	D3DCOLOR d3dCurItemBar;
 	D3DCOLOR d3dCurItemTex;
 	D3DCOLOR d3dLine;
 	D3DCOLOR d3dScrollBar;
@@ -123,13 +123,24 @@ public:
 
 	void HandleMessage ( UINT uMsg, WPARAM wParam, LPARAM lParam );
 
+	void AddTextBox ( DWORD dwTime ,const char *szText,...);
+
 	void AddSubMenu ( CMenu *pMenu, int iRow );
 	void RemoveSubMenu ( CMenu* );
 	void RemoveAllSubMenus ( void );
+	void SetAllRowsEnabled ( void )
+	{
+		for ( size_t i = 0; i < m_RowStatus.size (); i++ )
+		{
+			m_RowStatus [ i ] = true;
+		}
 
+		  bOldState = false;
+	}
 private:
 	KeyInput m_KeyInput;
-
+	std::map<int, int> iOldRowCount;
+	bool bOldState = false;
 	struct SColumn
 	{
 		struct SColumnItem
@@ -181,7 +192,11 @@ private:
 	bool m_bAtEnd;
 	bool m_bLockControls;
 
+	int iOldcu = -1;
 	std::vector<bool> m_bKeys;
+
+	char m_szTextBox [ MAX_PATH ];
+	DWORD m_dwTime;
 
 	void _UpdateItemsUp ( void );
 	void _UpdateItemsDown ( void );

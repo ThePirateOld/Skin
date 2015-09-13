@@ -34,6 +34,7 @@
 #include <list>
 #include <map>
 #include <deque>
+#include <algorithm>
 
 using namespace std;
 

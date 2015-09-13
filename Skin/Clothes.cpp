@@ -254,11 +254,22 @@ static SPlayerClothing sSpecialClothing [ SPECIAL_CLOTHING_MAX ] =
 	{ "medictr", "medictr", 17, "Medic Uniform" }
 };
 
+const int CClothes::GetBodypartIdByName ( const char *szBodypartName )
+{
+	for ( size_t i = 0; i < PLAYER_CLOTHING_SLOTS; i++ )
+	{
+		if ( !strcmp ( szBodypartName, sClothingType [ i ].szName ) )
+			return i;
+	}
+
+	return -1;
+}
+
 const SPlayerClothing  *CClothes::GetClothingGroupByName ( const char *szBodypartName )
 {
 	for ( size_t i = 0; i < PLAYER_CLOTHING_SLOTS; i++ )
 	{
-		if ( szBodypartName == sClothingType [ i ].szName )
+		if ( !strcmp(szBodypartName , sClothingType [ i ].szName) )
 			return GetClothingGroup ( i );
 	}
 	return NULL;

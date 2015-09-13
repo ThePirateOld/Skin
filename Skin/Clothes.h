@@ -38,6 +38,7 @@ struct SPlayerClothing
 class CClothes
 {
 public:
+	static const int GetBodypartIdByName ( const char *szBodypartName );
 	static const  SPlayerClothing  *GetClothingGroup ( unsigned char ucType );
 	static const  SPlayerClothing  *GetClothingGroupByName ( const char *szBodypartName );
 	static const int GetClothingGroupMax ( unsigned char ucType );

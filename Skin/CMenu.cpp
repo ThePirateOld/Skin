@@ -15,6 +15,145 @@ struct SSubMenuAddon
 	std::map<int, CMenu*> NextMenu;
 }SubMenu;
 
+
+LPD3DXFONT g_pFont = NULL;
+LPD3DXSPRITE g_pSprite = NULL;
+
+LPD3DXFONT LoadD3Font ( IDirect3DDevice9 *pDevice )
+{
+	LPD3DXFONT font;
+	D3DXCreateSprite ( pDevice, &g_pSprite );
+
+	D3DXCreateFontA ( pDevice, -MulDiv ( 10, GetDeviceCaps ( GetDC ( 0 ), LOGPIXELSY ), 72 ), 0, FW_BLACK,
+					  0, false, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Tahoma", &font );
+	return font;
+}
+
+
+ signed char hex_to_dec ( signed char ch )
+{
+	if ( ch >= '0' && ch <= '9' )
+		return ch - '0';
+	if ( ch >= 'A' && ch <= 'F' )
+		return ch - 'A' + 10;
+	if ( ch >= 'a' && ch <= 'f' )
+		return ch - 'A' + 10;
+
+	return -1;
+}
+
+ bool hex_is_valid ( std::string hex )
+ {
+	 if ( hex.empty () )
+		 return false;
+	 for ( size_t i = 0; i < hex.length (); i++ )
+	 {
+		 if ( hex_to_dec ( hex [ i ] ) == -1 )
+			 return false;
+	 }
+	 return true;
+ }
+
+ CONST D3DCOLOR Red = D3DCOLOR_ARGB ( 255, 255, 000, 000 );
+ CONST D3DCOLOR Green = D3DCOLOR_ARGB ( 255, 127, 255, 000 );
+ CONST D3DCOLOR Orange = D3DCOLOR_ARGB ( 255, 255, 140, 000 );
+ CONST D3DCOLOR Blue = D3DCOLOR_ARGB ( 255, 000, 000, 255 );
+ CONST D3DCOLOR Yellow = D3DCOLOR_ARGB ( 255, 255, 255, 51 );
+ CONST D3DCOLOR Black = D3DCOLOR_ARGB ( 255, 000, 000, 000 );
+ CONST D3DCOLOR Grey = D3DCOLOR_ARGB ( 255, 112, 112, 112 );
+ CONST D3DCOLOR Gold = D3DCOLOR_ARGB ( 255, 255, 215, 000 );
+ CONST D3DCOLOR Pink = D3DCOLOR_ARGB ( 255, 255, 192, 203 );
+ CONST D3DCOLOR Purple = D3DCOLOR_ARGB ( 255, 128, 000, 128 );
+ CONST D3DCOLOR White = D3DCOLOR_ARGB ( 255, 255, 255, 249 );
+ CONST D3DCOLOR Cyan = D3DCOLOR_ARGB ( 255, 000, 255, 255 );
+ CONST D3DCOLOR Magenta = D3DCOLOR_ARGB ( 255, 255, 000, 255 );
+
+ struct s
+ {
+	  char sKey;
+	  long color;
+ }cs [] =
+ { {'red',Red }, { 'blu',Blue }, { 'pur',Purple }, { 'whi',White },{ 'mag',Magenta }, { 'cya',Cyan }, { 'ora',Orange }, { 'pin',Pink },
+ { 'gol',Gold }, { 'gry',Grey } ,{ 'bla',Black }, { 'yel',Yellow } , { 'grn',Green }
+ };
+
+ enum EColor
+ {
+	 R = 0xFF0000,
+	 B = 0x0000FF,
+ };
+
+ long GetColor ( char c )
+ {
+	 for ( size_t i = 0; i < sizeof(cs); i++ )
+	 {
+		 if ( cs [ i ].sKey == c )
+			 return cs [ i ].color;
+	 }
+ }
+
+void DrawFont ( LPD3DXFONT pFont, RECT &r, DWORD dwFormat, D3DCOLOR d3dColor, CHAR *szStr )
+{
+	g_pSprite->Begin ( D3DXSPRITE_ALPHABLEND );
+	g_pSprite->Flush ();
+
+	DWORD dwColor = d3dColor;
+
+	int iTagCount= 0;
+	std::map<int, long> color; 
+	std::string str ( szStr );
+	RECT rctA =r ;
+
+	int inc = 0;
+	for ( size_t i = 0; i < str.size (); i++ )
+	{
+		if ( str [ i ] == '>' )
+		{
+			if ( str [ i + 2 ] == '<' )
+			{
+				color [ iTagCount ] = GetColor ( str [ i + 1 ] );
+				iTagCount++;
+				str.erase ( i, 3 );
+
+			}
+		}
+	
+
+		if ( dwFormat & DT_CALCRECT )
+		{
+			pFont->DrawTextA ( NULL, str.c_str (), -1, &r, dwFormat, NULL );
+		}
+		else
+		{
+			if ( iTagCount )
+				dwColor = color [ iTagCount - 1 ];
+
+			HDC dc = pFont->GetDC ();
+
+			SIZE size;
+			GetTextExtentPoint32A ( dc, &str [ i ], 1, &size );
+
+			char sz [ 128 ];
+			sprintf ( sz, "%c", str [ i ] );
+
+			pFont->DrawTextA ( g_pSprite, sz, -1, &r, dwFormat, dwColor );
+			r.left = r.left + size.cx; // offset for next character.
+
+			if ( inc > rctA.right - rctA.left - 20 )
+			{
+				inc = 0;
+				r.left = rctA.left;
+				r.top += size.cy;
+				r.bottom = r.top + size.cy;
+			}
+			else							
+				inc += size.cx;		
+		}
+	}
+	
+	g_pSprite->End ();
+}
+
 CMenuManager::CMenuManager ( void ) :
 	m_pDevice ( NULL ),
 	m_pFont ( NULL ),
@@ -31,7 +170,9 @@ CMenuManager::~CMenuManager ( void )
 
 HRESULT CMenuManager::InitializeDeviceObjs ( IDirect3DDevice9 *pDevice )
 {
-	m_pFont = new CD3DFont ( "Arial", 10 );
+	m_pFont = new CD3DFont ( "Tahoma", 10, FW_EXTRABOLD );
+
+	g_pFont = LoadD3Font ( pDevice );
 
 	if ( !m_pFont )
 		return E_FAIL;
@@ -155,6 +296,12 @@ void CMenuManager::OnLostDevice ( void )
 
 	if ( m_pRender )
 		m_pRender->Invalidate ();
+
+	if ( g_pFont )
+		g_pFont->OnLostDevice ();
+
+	if ( g_pSprite )
+		g_pSprite->OnLostDevice ();
 }
 
 void CMenuManager::OnResetDevice ( void )
@@ -164,6 +311,12 @@ void CMenuManager::OnResetDevice ( void )
 
 	if ( m_pRender )
 		m_pRender->Initialize ( m_pDevice );
+
+	if ( g_pFont )
+		g_pFont->OnResetDevice ();
+
+	if ( g_pSprite )
+		g_pSprite->OnResetDevice ();
 }
 
 CMenu::CMenu ( void ) : m_iPageSize ( 19 ), m_iMaxItems ( 255 )
@@ -176,7 +329,7 @@ CMenu::CMenu ( void ) : m_iPageSize ( 19 ), m_iMaxItems ( 255 )
 	m_bShowLines = m_bShowScrollbar = true;
 	m_bLockControls = false;
 
-	m_iCurrentRow = m_iNexSpace = m_iCountItemsEnabled =0;
+	m_iCurrentRow = m_iNexSpace = m_iCountItemsEnabled = m_dwTime=0;
 	m_iOldRow = m_iOldRowCount = -1;
 
 	SSubMenuAddon::SInvokeMenu sInvoke;
@@ -196,9 +349,9 @@ void CMenu::Initialize ( CMenuManager *pMenuManager )
 	m_sColor.d3dBackGround			= D3DCOLOR_RGBA ( 0, 0, 0, 200 );
 	m_sColor.d3dScrollBar			= D3DCOLOR_RGBA ( 180, 180, 180, 200 );
 	m_sColor.d3dScrollBarBackGround = D3DCOLOR_RGBA ( 0, 0, 0, 100 );
-	m_sColor.d3dSelecItemBar		= D3DCOLOR_RGBA ( 255, 255, 255, 255 );
+	m_sColor.d3dCurItemBar			= D3DCOLOR_RGBA ( 255, 255, 255, 255 );
 	m_sColor.d3dLine				= D3DCOLOR_RGBA ( 180, 180, 180, 255 );
-	m_sColor.d3dEnabledItem			= D3DCOLOR_RGBA ( 180, 180, 180, 255 );
+	m_sColor.d3dEnabledItem			= D3DCOLOR_RGBA ( 80, 80, 80, 255 );
 	m_sColor.d3dCurItemTex			= D3DCOLOR_RGBA ( 0, 0, 0, 255 );
 
 	m_pMenuManager = pMenuManager;
@@ -218,6 +371,7 @@ void CMenu::Draw ( void )
 	if ( !pFont || !pRender )
 		return;
 
+	
 	if ( SubMenu.InvokeMenu [ this ].bStat )
 
 	{
@@ -285,7 +439,35 @@ void CMenu::Draw ( void )
 		}
 
 		m_vSize = this->GetSize ();
+		static DWORD time = 0;
+		if ( m_dwTime && 
+			 m_szTextBox )
+		{
+			if(!time )
+			time = ( 1.f * m_dwTime ) + timeGetTime ();
 
+			if ( timeGetTime () < time )
+			{
+				RECT rctA, rctB;
+
+				rctA.left = m_vPos.x + 4;
+				rctA.top = m_vPos.y + m_vSize.y + m_iTitleScale + 6;
+				rctA.right = rctA.left + m_vSize.x;
+				rctA.bottom = rctA.top + ( m_vSize.y / 2 ) + m_iTitleScale + 6;
+
+				rctB = rctA;
+
+				DrawFont ( g_pFont, rctA,  DT_WORDBREAK| DT_CALCRECT, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), m_szTextBox );
+				pRender->D3DBox ( m_vPos.x, m_vPos.y + m_vSize.y + m_iTitleScale + 4, m_vSize.x, rctA.bottom - rctA.top + 4, 0.f, m_sColor.d3dBackGround );
+				DrawFont ( g_pFont, rctB, 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), m_szTextBox );
+			}
+			else
+			{
+				time = 0;
+				m_dwTime = 0;
+			}
+		}
+	
 		pRender->D3DBox ( m_vPos.x, m_vPos.y, m_vSize.x, m_vSize.y + m_iTitleScale, 0.f, m_sColor.d3dBackGround );
 		pRender->D3DLine ( m_vPos.x, m_vPos.y + m_iTitleScale - 2.f, m_vPos.x + m_vSize.x, m_vPos.y + m_iTitleScale - 2.f, m_sColor.d3dLine );
 
@@ -306,7 +488,7 @@ void CMenu::Draw ( void )
 
 		if ( m_iCountItemsEnabled )
 		{
-			pRender->D3DBox ( ( float ) m_vPos.x, float ( m_vPos.y + m_iTitleScale ) + float ( m_iTextSpace * float ( m_iCurrentRow - m_iNexSpace ) ), m_bShowScrollbar && m_RowStatus.size () > m_iPageSize ? m_vSize.x - 15.f : m_vSize.x, m_iTextSpace, 0.f, m_sColor.d3dSelecItemBar );
+			pRender->D3DBox ( ( float ) m_vPos.x, float ( m_vPos.y + m_iTitleScale ) + float ( m_iTextSpace * float ( m_iCurrentRow - m_iNexSpace ) ), m_bShowScrollbar && m_RowStatus.size () > m_iPageSize ? m_vSize.x - 15.f : m_vSize.x, m_iTextSpace, 0.f, m_sColor.d3dCurItemBar );
 		}
 
 		int iIncPosX = m_vPos.x;
@@ -409,9 +591,9 @@ void CMenu::Draw ( void )
 					bKey = true;
 				}
 			}
-
 		}
 	}
+	iOldcu = m_iCurrentRow;
 }
 
 
@@ -594,11 +776,10 @@ void CMenu::ClearItemsFromColumn ( int iColumnID )
 	}
 
 	
-	if ( !GetSize( ))
+	if ( m_ColumnAddon.size() <= 1)
 	{
 		m_iCountItemsEnabled = 0;
-		m_iCurrentRow = m_iNexSpace = 0;
-		m_iOldRow = m_iOldRowCount = -1;
+		//m_iOldRow = m_iOldRowCount = -1;
 
 		m_RowStatus.clear ();
 	}
@@ -646,9 +827,6 @@ void CMenu::SetSelectedRowByName ( int iColumnID, const char *szItem )
 
 void CMenu::SetSelectedRow ( int iRow )
 {
-	if ( m_iCurrentRow == iRow )
-		return;
-
 	if ( GetNumOfItems () > iRow )
 	{
 		m_iNexSpace = 0;
@@ -659,6 +837,7 @@ void CMenu::SetSelectedRow ( int iRow )
 		}
 	
 		m_iCurrentRow = iRow;
+		m_iOldRow = - 1;
 	}
 }
 
@@ -681,37 +860,43 @@ void CMenu::SetEnabledRowByName ( int iColumnID, const char *szItem, bool bActiv
 
 void CMenu::SetEnabledRow ( int iRow, bool bActivate )
 {
+	//static std::map<int, int> iOldRowCount;
+	//static bool bOldState = false;
 	if ( GetNumOfItems () > iRow )
 	{
-		if ( m_iOldRowCount != iRow )
+		if ( iOldRowCount [ iRow ] != iRow || bOldState != bActivate)
 		{
-			if ( bActivate && 
-				 !m_RowStatus [ iRow ] )
+			if ( bActivate )
 			{
 				m_iCountItemsEnabled++;
 			}
-			else if ( m_iCountItemsEnabled && 
-					  m_RowStatus [ iRow ] )
+			else if ( m_iCountItemsEnabled )
 			{
 				m_iCountItemsEnabled--;
 			}
-			m_iOldRowCount = iRow;
+			bOldState = bActivate;
+			iOldRowCount [ iRow ] = iRow;		
+		
+			
 		}
-		m_RowStatus [ iRow ] = bActivate;
+
+		m_RowStatus [ iRow ] = bActivate;		
 	}
 }
 
 
 bool CMenu::OnKeyPressed ( int iRow )
 {
-	static bool bKey;
+	static  bool bKey;
+
+	static int iLasRow; 
 
 	if ( m_iCurrentRow == iRow &&
 		 SubMenu.InvokeMenu [ this ].bStat )
 	{
 		if ( GetAsyncKeyState ( VK_SPACE ) )
 		{
-			if ( bKey )
+			if ( bKey  && bKey )
 			{
 				bKey = false;
 				return true;
@@ -720,9 +905,9 @@ bool CMenu::OnKeyPressed ( int iRow )
 		else
 		{
 			if ( GetAsyncKeyState ( VK_RETURN ) )
-				bKey = false;
+				bKey= false;
 			else
-				bKey = true;
+				bKey  = true;
 		}
 	}
 
@@ -743,6 +928,21 @@ void CMenu::SetNewItem ( int iColumnID, int iRow, const char *szItem, ... )
 		m_ColumnAddon [ iColumnID ]->ItemAddon.sItemName [ iRow ] = szBuffer;
 	}
 	else m_ColumnAddon [ iColumnID ]->ItemAddon.sItemName [ iRow ] = szItem ;
+}
+
+void CMenu::AddTextBox ( DWORD dwTime, const char *szText, ... )
+{
+	if ( szText )
+	{
+		char szBuffer [ 1024 ];
+		va_list ap;
+		va_start ( ap, szText );
+		vsnprintf ( szBuffer, 1024, szText, ap );
+		va_end ( ap );
+
+		m_dwTime = dwTime;
+		strcpy ( m_szTextBox, szBuffer );
+	}
 }
 
 void CMenu::SetColor ( SMenuColor sColor )
@@ -906,6 +1106,7 @@ size_t CMenu::GetNumOfItems ( void )
 
 void CMenu::HandleMessage ( UINT uMsg, WPARAM wParam, LPARAM lParam )
 {
+	
 	switch ( uMsg )
 	{
 		case WM_KEYDOWN:
@@ -921,7 +1122,7 @@ void CMenu::HandleMessage ( UINT uMsg, WPARAM wParam, LPARAM lParam )
 
 					if ( m_iCountItemsEnabled < 2 )
 						break;
-
+					
 					m_iCurrentRow--;
 					if ( m_bAtBegin )
 						m_iNexSpace--;
@@ -936,7 +1137,7 @@ void CMenu::HandleMessage ( UINT uMsg, WPARAM wParam, LPARAM lParam )
 
 					if ( m_iCountItemsEnabled < 2 )
 						break;
-
+					
 					m_iCurrentRow++;
 					if ( m_bAtEnd )
 						m_iNexSpace++;

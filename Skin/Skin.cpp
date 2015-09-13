@@ -127,7 +127,6 @@ void ReleaseSpecialModel ( DWORD dwModelID )
 	}
 }
 
-
 BOOL HasModelLoaded ( DWORD dwModel )
 {
 	if ( dwModel < 0 )
@@ -206,16 +205,30 @@ void SetModelIndex ( DWORD dwModelID )
 	}
 }
 
-void SetClothes ( const char* szTexture, const char* szModel, int textureType )
+void SetClothesByName ( const char* szTexture, const char* szModel, DWORD dwBodyPart )
 {
 	__asm
 	{
 		mov		edi, 00B7CD98h
 		mov		ecx, [ edi + 0x8 ]
-		push	textureType
+		push	dwBodyPart
 		push	szModel
 		push	szTexture
 		mov		eax, 005A8080h
+		call	eax
+	}
+}
+
+void SetClothes ( DWORD dwTexture, DWORD dwModel, DWORD dwBodyPart )
+{
+	__asm
+	{
+		mov		edi, 00B7CD98h
+		mov		ecx, [ edi + 0x8 ]
+		push	dwBodyPart
+		push	dwModel
+		push	dwTexture
+		mov		eax, 005A8050h
 		call	eax
 	}
 }
@@ -240,7 +253,7 @@ struct SClothesInfo
 	DWORD dwTexture;
 };
 
-DWORD GetClothesInfoIndexFromBodyPart ( DWORD dwBodyPart )
+DWORD GetClothesInfoFromBodyPart ( DWORD dwBodyPart )
 {
 	DWORD dwResult = 0;
 
@@ -261,12 +274,12 @@ DWORD GetClothesInfoIndexFromBodyPart ( DWORD dwBodyPart )
 	return dwResult;
 }
 
-void GetPlayerBodyPart ( DWORD dwBodyPart, SClothesInfo &clothes )
+void GetPlayerCurrentClothes ( DWORD dwBodyPart, SClothesInfo &clothes )
 {
 	DWORD dwModel = 0;
 	DWORD dwTexture = 0;
 
-	DWORD dwInfo = GetClothesInfoIndexFromBodyPart ( dwBodyPart );
+	DWORD dwInfo = GetClothesInfoFromBodyPart ( dwBodyPart );
 
 	__asm
 	{
@@ -276,15 +289,15 @@ void GetPlayerBodyPart ( DWORD dwBodyPart, SClothesInfo &clothes )
 		mov		edx, [ edi + eax * 4 + 28h ]
 		mov		dwTexture, edx
 		mov		eax, dwInfo
+		mov		eax, [ edi + eax * 4 ]
 
 		cmp		edx, 0x0
-		je cnt
+		je cont
 
-		mov		eax, [ edi + eax * 4 ]
 		mov		dwModel, eax
 	}
 
-cnt:
+cont:
 	clothes.dwModel = dwModel;
 	clothes.dwTexture = dwTexture;
 }
@@ -306,7 +319,7 @@ BOOL HasClothBought ( DWORD dwTexture )
 	return bReturn;
 }
 
-DWORD GetShoppingItemInPool ( int index )
+DWORD GetShoppingTexture ( int index )
 {
 	DWORD dwTexture;
 
@@ -674,6 +687,20 @@ CPed *pPed = NULL;
 #include "CKeyGen.h"
 namespace CallbackHandlers
 {
+	void MainMenu ( CMenu *pMenu, int iRow )
+	{
+		if ( GetPlayerModelID ( PlayerPed ) != NULL )
+		{
+			pMenu->SetEnabledRow ( 3, false );
+			pMenu->SetEnabledRow ( 4, false );
+		}
+		else
+		{
+			pMenu->SetEnabledRow ( 3, true );
+			pMenu->SetEnabledRow ( 4, true );
+		}
+	}
+
 	void MenuNewSkins ( CMenu *pMenu, int iRow )
 	{
 
@@ -682,6 +709,8 @@ namespace CallbackHandlers
 	void MenuPedSkins ( CMenu *pMenu, int iRow )
 	{
 		int iModel = sPedModel [ iRow ].uiPedID;
+		static int iOldSkin = -1;
+
 
 		if ( pMenu->OnKeyPressed ( iRow ) )
 		{
@@ -703,10 +732,14 @@ namespace CallbackHandlers
 				SetModelIndex ( iModel );
 			}
 		}
+
 	}
 
 	void MenuSpecialSkins ( CMenu *pMenu, int iRow )
 	{
+		static int iOldSkin = -1;
+
+
 		if ( pMenu->OnKeyPressed ( iRow ) )
 		{
 			if ( !HasSpecialModelLoaded ( 290 ) )
@@ -717,19 +750,23 @@ namespace CallbackHandlers
 
 			SetModelIndex ( 290 );
 			ReleaseSpecialModel ( 290 );
+			pMenu->AddTextBox ( 2000, "Selected skin" );
 		}
+
 	}
 
 	void MenuClothes ( CMenu *pMenu, int iRow )
 	{
+		SClothesInfo sClothes;
+
 		if ( g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES ) == pMenu )
 		{
-			g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES )->ClearItemsFromColumn ( 0 );
+			pMenu->ClearItemsFromColumn ( 0 );
+			//pMenu->SetPageSize ( 20 );
 
 			for ( size_t i = 0; i < PLAYER_CLOTHING_SLOTS; i++ )
 			{
-				SClothesInfo sClothes;
-				GetPlayerBodyPart ( i, sClothes );
+				GetPlayerCurrentClothes ( i, sClothes );
 
 				for ( size_t j = 0; j < CClothes::GetClothingGroupMax ( i ); j++ )
 				{
@@ -740,20 +777,41 @@ namespace CallbackHandlers
 					}
 				}
 			}
+
+			if ( pMenu->OnKeyPressed ( iRow ) )
+			{
+				SetClothes ( NULL, NULL, CClothes::GetBodypartIdByName ( pMenu->GetSelectedRowByName ( 0 ) ) );
+				RebuildChar ();
+			}
 		}
 		else
 		{
+			const SPlayerClothing *ClothesInfo = CClothes::GetClothingGroupByName ( pMenu->GetColumnName ( 0 ) );
+
+			GetPlayerCurrentClothes ( ClothesInfo [ iRow  ].uiBodyPart, sClothes );
+
 			if ( pMenu->OnKeyPressed ( iRow ) )
 			{
-				if ( GetPlayerModelID ( PlayerPed ) == NULL )
+				if ( sClothes.dwTexture != CKeyGen::GetUppercaseKey ( ClothesInfo [ iRow  ].szTexture ) )
 				{
-					const SPlayerClothing *ClothesInfo = CClothes::GetClothingGroupByName ( pMenu->GetColumnName ( 0 ) );
-					SetClothes ( ClothesInfo [ iRow ].szTexture, ClothesInfo [ iRow ].szModel, ClothesInfo [ iRow ].uiBodyPart );
+					SetClothesByName ( ClothesInfo [ iRow  ].szTexture, ClothesInfo [ iRow ].szModel, ClothesInfo [ iRow ].uiBodyPart );
 					RebuildChar ();
+					pMenu->AddTextBox ( 2000, "Item >r<asd>b<sssssssa as asdsadasdadasdsadasdasdasd asd asd asdds ss asd asd s sd" );
+				}
+			}
+
+			pMenu->SetAllRowsEnabled ();
+			for ( size_t i = 0; i < pMenu->GetNumOfItems (); i++ )
+			{
+				if ( sClothes.dwTexture == CKeyGen::GetUppercaseKey ( CClothes::GetClothingGroup ( ClothesInfo [ i  ].uiBodyPart ) [ i ].szTexture ) )
+				{
+					pMenu->SetEnabledRow ( i , false );
 				}
 			}
 		}
 	}
+	
+
 
 	void MenuStat ( CMenu *pMenu, int iRow )
 	{
@@ -763,7 +821,7 @@ namespace CallbackHandlers
 			return;
 
 		SClothesInfo sClothes,s;
-		GetPlayerBodyPart ( iMuscle, sClothes );
+		GetPlayerCurrentClothes ( iMuscle, sClothes );
 
 		 s.dwTexture = ( *( DWORD * ) ( ( unsigned int ) PlayerPed + 0x8 + 0x28 ) );
 		static char szItem [ 128 ];
@@ -781,7 +839,7 @@ namespace CallbackHandlers
 		}
 
 		pMenu->SetNewItem ( 1, 0, "%i", sClothes.dwModel );
-		pMenu->SetNewItem ( 1, 1, "%i", pPed->m_pPlayerData->m_pClothes->m_aModelKeys [ GetClothesInfoIndexFromBodyPart ( iMuscle ) ] );
+		pMenu->SetNewItem ( 1, 1, "%i", pPed->m_pPlayerData->m_pClothes->m_aModelKeys [ GetClothesInfoFromBodyPart ( iMuscle ) ] );
 	}
 };
 
@@ -921,6 +979,8 @@ void SkinInit ()
 	g_pMenuManager->GetMenu ( MENU_ID_MAIN_MENU )->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, "Change Player Clothes" );
 	g_pMenuManager->GetMenu ( MENU_ID_MAIN_MENU )->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, "Change Stat" );
 
+
+
 	// Add Submenus
 	g_pMenuManager->GetMenu ( MENU_ID_MAIN_MENU )->AddSubMenu ( g_pMenuManager->GetMenu ( MENU_ID_NEW_SKINS ), 0 );
 	g_pMenuManager->GetMenu ( MENU_ID_MAIN_MENU )->AddSubMenu ( g_pMenuManager->GetMenu ( MENU_ID_PED_SKINS ), 1 );
@@ -929,6 +989,7 @@ void SkinInit ()
 	g_pMenuManager->GetMenu ( MENU_ID_MAIN_MENU )->AddSubMenu ( g_pMenuManager->GetMenu ( MENU_ID_CHANGE_STAT ), 4 );
 
 	// Add Callback's
+	g_pMenuManager->GetMenu ( MENU_ID_MAIN_MENU )->SetEventHandler ( CallbackHandlers::MainMenu );
 	g_pMenuManager->GetMenu ( MENU_ID_NEW_SKINS )->SetEventHandler ( CallbackHandlers::MenuNewSkins );
 	g_pMenuManager->GetMenu ( MENU_ID_PED_SKINS )->SetEventHandler ( CallbackHandlers::MenuPedSkins );
 	g_pMenuManager->GetMenu ( MENU_ID_SPECIAL_SKINS )->SetEventHandler ( CallbackHandlers::MenuSpecialSkins );
@@ -937,7 +998,8 @@ void SkinInit ()
 		g_pMenuManager->GetMenu ( i )->SetEventHandler ( CallbackHandlers::MenuClothes );
 
 	g_pMenuManager->GetMenu ( MENU_ID_CHANGE_STAT )->SetEventHandler ( CallbackHandlers::MenuStat );
-	
+	g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES )->SetEventHandler ( CallbackHandlers::MenuClothes );
+
 	//----------- New Skins
 	g_pMenuManager->GetMenu ( MENU_ID_NEW_SKINS )->AddColumn ( 0, "New Skins", 200 );
 
@@ -996,16 +1058,15 @@ void SkinInit ()
 
 		const SPlayerClothing *ClothesInfo = CClothes::GetClothingGroup ( i );
 		for ( size_t j = 0; j < CClothes::GetClothingGroupMax ( i ); j++ )
+		{					
 			g_pMenuManager->GetMenu ( iMenuClothesID )->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, ClothesInfo [ j ].szName );
-
+		}
 		g_pMenuManager->GetMenu ( MENU_ID_CHANGE_CLOTHES )->AddSubMenu ( g_pMenuManager->GetMenu ( iMenuClothesID ), i );
 
 	}
 
 	g_pMenuManager->GetMenu ( MENU_ID_CHANGE_CLOTHES )->AddColumnItem ( 0, D3DCOLOR_RGBA ( 255, 255, 255, 255 ), false, "Remove Clothes" );
 	g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES )->AddColumn ( 0, "Remove Clothes", 200, D3DCOLOR_RGBA ( 255, 255, 255, 255 ) );
-
-	g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES )->SetEventHandler ( CallbackHandlers::MenuClothes );
 
 	g_pMenuManager->GetMenu ( MENU_ID_CHANGE_CLOTHES )->AddSubMenu ( g_pMenuManager->GetMenu ( MENU_ID_REMOVE_CLOTHES ), 18 );
 
