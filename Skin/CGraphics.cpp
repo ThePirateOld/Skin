@@ -35,6 +35,32 @@ inline FONTVERTEX InitFont2DVertex ( float x, float y,
 	return { x, y, 1.0f, 1.0f, colour, tu, tv };
 }
 
+
+//-----------------------------------------------------------------------------
+// Custom vertex types for rendering text
+//-----------------------------------------------------------------------------
+#define MAX_NUM_VERTICES 50*6
+
+struct FONT2DVERTEX { D3DXVECTOR4 p;   DWORD color;     FLOAT tu, tv; };
+struct FONT3DVERTEX { D3DXVECTOR3 p;   D3DXVECTOR3 n;   FLOAT tu, tv; };
+
+#define D3DFVF_FONT2DVERTEX (D3DFVF_XYZRHW|D3DFVF_DIFFUSE|D3DFVF_TEX1)
+#define D3DFVF_FONT3DVERTEX (D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_TEX1)
+
+inline FONT2DVERTEX InitFont2DVertex ( const D3DXVECTOR4& p, D3DCOLOR color,
+									   FLOAT tu, FLOAT tv )
+{
+	FONT2DVERTEX v;   v.p = p;   v.color = color;   v.tu = tu;   v.tv = tv;
+	return v;
+}
+
+inline FONT3DVERTEX InitFont3DVertex ( const D3DXVECTOR3& p, const D3DXVECTOR3& n,
+									   FLOAT tu, FLOAT tv )
+{
+	FONT3DVERTEX v;   v.p = p;   v.n = n;   v.tu = tu;   v.tv = tv;
+	return v;
+}
+
 // Helper function
 void RotateVerts ( D3DXVECTOR2 *pVector, int iVertexCount, float fX, float fY, float fAngle )
 {
@@ -252,282 +278,480 @@ HRESULT CD3DState::EndState ( void )
 
 	return S_OK;
 }
-
-CD3DFont::CD3DFont ( const char *pszFontName, int iFontHeight, DWORD dwCreateFlags )
+//-----------------------------------------------------------------------------
+// Name: CD3DFont()
+// Desc: Font class constructor
+//-----------------------------------------------------------------------------
+CD3DFont::CD3DFont ( const CHAR* strFontName, DWORD dwHeight, DWORD dwFlags )
 {
-	strcpy_s ( m_szFontName, 32, ( pszFontName ? pszFontName : "Arial" ) );
+	strncpy_s ( m_strFontName, strFontName, sizeof ( m_strFontName ) / sizeof ( CHAR ) );
+	m_strFontName [ sizeof ( m_strFontName ) / sizeof ( CHAR ) - 1 ] = _T ( '\0' );
+	m_dwFontHeight = dwHeight;
+	m_dwFontFlags = dwFlags;
+	m_dwSpacing = 0;
 
-	m_fontHeight = iFontHeight;
-	m_dwCreateFlags = dwCreateFlags;
+	m_pd3dDevice = NULL;
+	m_pTexture = NULL;
+	m_pVB = NULL;
 
-	m_isReady = m_statesOK = false;
-
-	m_pD3Dtex = NULL;
-	m_pD3Dbuf = NULL;
-
-	m_maxTriangles = 255 * 2;
 }
 
-CD3DFont::~CD3DFont ( )
+
+
+
+//-----------------------------------------------------------------------------
+// Name: ~CD3DFont()
+// Desc: Font class destructor
+//-----------------------------------------------------------------------------
+CD3DFont::~CD3DFont ()
 {
-	Invalidate ( );
+	InvalidateDeviceObjects ();
+	DeleteDeviceObjects ();
 }
 
-HRESULT CD3DFont::Initialize ( IDirect3DDevice9 * pD3Ddev )
+
+
+
+//-----------------------------------------------------------------------------
+// Name: InitDeviceObjects()
+// Desc: Initializes device-dependent objects, including the vertex buffer used
+//       for rendering text and the texture map which stores the font image.
+//-----------------------------------------------------------------------------
+HRESULT CD3DFont::InitDeviceObjects ( LPDIRECT3DDEVICE9 pd3dDevice )
 {
-	CD3DState::Initialize ( pD3Ddev );
+	HRESULT hr;
 
-	m_texWidth = m_texHeight = 1024;
+	CD3DState::Initialize ( pd3dDevice );
 
-	if ( FAILED ( m_pd3dDevice->CreateTexture ( m_texWidth, m_texHeight, 1, 0, D3DFMT_A4R4G4B4, D3DPOOL_MANAGED, &m_pD3Dtex, NULL ) ) )
+	// Establish the font and texture size
+	m_fTextScale = 1.0f; // Draw fonts into texture without scaling
+
+						 // Large fonts need larger textures
+	if ( m_dwFontHeight > 60 )
+		m_dwTexWidth = m_dwTexHeight = 2048;
+	else if ( m_dwFontHeight > 30 )
+		m_dwTexWidth = m_dwTexHeight = 1024;
+	else if ( m_dwFontHeight > 15 )
+		m_dwTexWidth = m_dwTexHeight = 512;
+	else
+		m_dwTexWidth = m_dwTexHeight = 256;
+
+	// If requested texture is too big, use a smaller texture and smaller font,
+	// and scale up when rendering.
+	D3DCAPS9 d3dCaps;
+	m_pd3dDevice->GetDeviceCaps ( &d3dCaps );
+
+	if ( m_dwTexWidth > d3dCaps.MaxTextureWidth )
 	{
-		return E_FAIL;
+		m_fTextScale = ( FLOAT ) d3dCaps.MaxTextureWidth / ( FLOAT ) m_dwTexWidth;
+		m_dwTexWidth = m_dwTexHeight = d3dCaps.MaxTextureWidth;
 	}
 
-	if ( FAILED ( m_pd3dDevice->CreateVertexBuffer ( m_maxTriangles * 3 * sizeof ( FONTVERTEX ), D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC, 0, D3DPOOL_DEFAULT, &m_pD3Dbuf, NULL ) ) )
-	{
-		SAFE_RELEASE ( m_pD3Dtex );
-		return E_FAIL;
-	}
+	// Create a new texture for the font
+	hr = m_pd3dDevice->CreateTexture ( m_dwTexWidth, m_dwTexHeight, 1,
+									   0, D3DFMT_A4R4G4B4,
+									   D3DPOOL_MANAGED, &m_pTexture, NULL );
+	if ( FAILED ( hr ) )
+		return hr;
 
-	DWORD *pBitmapBits = 0;
+	// Prepare to create a bitmap
+	DWORD*      pBitmapBits;
 	BITMAPINFO bmi;
-
 	ZeroMemory ( &bmi.bmiHeader, sizeof ( BITMAPINFOHEADER ) );
 	bmi.bmiHeader.biSize = sizeof ( BITMAPINFOHEADER );
-	bmi.bmiHeader.biWidth = m_texWidth;
-	bmi.bmiHeader.biHeight = -m_texHeight;
+	bmi.bmiHeader.biWidth = ( int ) m_dwTexWidth;
+	bmi.bmiHeader.biHeight = -( int ) m_dwTexHeight;
 	bmi.bmiHeader.biPlanes = 1;
 	bmi.bmiHeader.biCompression = BI_RGB;
 	bmi.bmiHeader.biBitCount = 32;
 
-	HDC hDC = CreateCompatibleDC ( 0 );
-	HBITMAP hbmBitmap = CreateDIBSection ( hDC, &bmi, DIB_RGB_COLORS, ( void** ) &pBitmapBits, NULL, 0 );
+	// Create a DC and a bitmap for the font
+	HDC     hDC = CreateCompatibleDC ( NULL );
+	HBITMAP hbmBitmap = CreateDIBSection ( hDC, &bmi, DIB_RGB_COLORS,
+										   ( void** ) &pBitmapBits, NULL, 0 );
 	SetMapMode ( hDC, MM_TEXT );
 
-	HFONT hFont = CreateFontA ( -MulDiv ( m_fontHeight, GetDeviceCaps ( hDC, LOGPIXELSY ), 72 ), 0, 0, 0,  m_dwCreateFlags, m_dwCreateFlags&FCR_ITALICS, false, false,
-								ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY,
-								VARIABLE_PITCH, m_szFontName );
-
-	if ( hFont == NULL )
-	{
+	// Create a font.  By specifying ANTIALIASED_QUALITY, we might get an
+	// antialiased font, but this is not guaranteed.
+	INT nHeight = -MulDiv ( m_dwFontHeight,
+							( INT ) ( GetDeviceCaps ( hDC, LOGPIXELSY ) * m_fTextScale ), 72 );
+	DWORD dwBold = ( m_dwFontFlags&D3DFONT_BOLD ) ? FW_BOLD : FW_NORMAL;
+	DWORD dwItalic = ( m_dwFontFlags&D3DFONT_ITALIC ) ? TRUE : FALSE;
+	HFONT hFont = CreateFontA ( nHeight, 0, 0, 0, dwBold, dwItalic,
+							   FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+							   CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY,
+							   VARIABLE_PITCH, m_strFontName );
+	if ( NULL == hFont )
 		return E_FAIL;
-	}
 
 	SelectObject ( hDC, hbmBitmap );
 	SelectObject ( hDC, hFont );
 
-	SetTextColor ( hDC, 0x00FFFFFF );
-	SetBkColor ( hDC, 0 );
+	// Set text properties
+	SetTextColor ( hDC, RGB ( 255, 255, 255 ) );
+	SetBkColor ( hDC, 0x00000000 );
 	SetTextAlign ( hDC, TA_TOP );
 
-	int x, y = 0;
-	char szStr [ 2 ] = { ' ' , 0 };
+	// Loop through all printable character and output them to the bitmap..
+	// Meanwhile, keep track of the corresponding tex coords for each character.
+	DWORD x = 0;
+	DWORD y = 0;
+	CHAR str [ 2 ] = "x" ;
 	SIZE size;
 
-	GetTextExtentPoint32A ( hDC, szStr, 1, &size );
-	x = m_chrSpacing = static_cast<int>( ceil ( size.cx / 4.0f ) );
-	m_fChrHeight = static_cast<float>( size.cy - 1 );
+	// Calculate the spacing between characters based on line height
+	GetTextExtentPoint32A ( hDC,  " " , 1, &size );
+	x = m_dwSpacing = ( DWORD ) ceil ( size.cy * 0.3f );
 
-	for ( int c = 32; c < 255; c++ )
+	for ( CHAR c = 32; c < 127; c++ )
 	{
-		szStr [ 0 ] = btowc ( c );
+		str [ 0 ] = c;
+		GetTextExtentPoint32A ( hDC, str, 1, &size );
 
-		if ( !GetTextExtentPoint32A ( hDC, szStr, 1, &size ) )
-			MessageBoxA ( 0, szStr, "GetTextExtentPoint32", 0 );
-
-		if ( x + size.cx + m_chrSpacing > m_texWidth )
+		if ( ( DWORD ) ( x + size.cx + m_dwSpacing ) > m_dwTexWidth )
 		{
-			x = m_chrSpacing;
+			x = m_dwSpacing;
 			y += size.cy + 1;
 		}
 
-		RECT rect = { x, y, x + size.cx, y + size.cy };
-		if ( !ExtTextOutA ( hDC, x, y, ETO_CLIPPED, &rect, szStr, 1, 0 ) )
-			MessageBoxA ( 0, szStr, "ExtTextOut", 0 );
+		ExtTextOutA ( hDC, x + 0, y + 0, ETO_OPAQUE, NULL, str, 1, NULL );
 
-		//tu src + dst
-		m_fTexCoords [ c - 32 ] [ 0 ] = static_cast<float>( ( x + 0 - m_chrSpacing ) ) / static_cast<float>( m_texWidth );
-		m_fTexCoords [ c - 32 ] [ 2 ] = static_cast<float>( ( x + size.cx + m_chrSpacing ) ) / static_cast<float>( m_texWidth );
+		m_fTexCoords [ c - 32 ] [ 0 ] = ( ( FLOAT ) ( x + 0 - m_dwSpacing ) ) / m_dwTexWidth;
+		m_fTexCoords [ c - 32 ] [ 1 ] = ( ( FLOAT ) ( y + 0 + 0 ) ) / m_dwTexHeight;
+		m_fTexCoords [ c - 32 ] [ 2 ] = ( ( FLOAT ) ( x + size.cx + m_dwSpacing ) ) / m_dwTexWidth;
+		m_fTexCoords [ c - 32 ] [ 3 ] = ( ( FLOAT ) ( y + size.cy + 0 ) ) / m_dwTexHeight;
 
-		//tv src + dst
-		m_fTexCoords [ c - 32 ] [ 1 ] = static_cast<float>( ( y + 0 + 0 ) ) / static_cast<float>( m_texHeight );
-		m_fTexCoords [ c - 32 ] [ 3 ] = static_cast<float>( ( y + size.cy + 0 ) ) / static_cast<float>( m_texHeight );
-
-		x += size.cx + ( 2 * m_chrSpacing );
+		x += size.cx + ( 2 * m_dwSpacing );
 	}
 
+	// Lock the surface and write the alpha values for the set pixels
 	D3DLOCKED_RECT d3dlr;
-	m_pD3Dtex->LockRect ( 0, &d3dlr, 0, 0 );
+	m_pTexture->LockRect ( 0, &d3dlr, 0, 0 );
+	BYTE* pDstRow = ( BYTE* ) d3dlr.pBits;
+	WORD* pDst16;
+	BYTE bAlpha; // 4-bit measure of pixel intensity
 
-	BYTE * pDstRow = reinterpret_cast<BYTE*>( d3dlr.pBits );
-	WORD * pDst16 = 0;
-	BYTE bAlpha = 0;
-
-	for ( y = 0; y < m_texHeight; y++ )
+	for ( y = 0; y < m_dwTexHeight; y++ )
 	{
-		pDst16 = reinterpret_cast<WORD*>( pDstRow );
-
-		for ( x = 0; x < m_texWidth; x++ )
+		pDst16 = ( WORD* ) pDstRow;
+		for ( x = 0; x < m_dwTexWidth; x++ )
 		{
-			bAlpha = static_cast<BYTE>( ( pBitmapBits [ m_texWidth * y + x ] >> 8 ) ) & 0xFF;
-			*pDst16 = static_cast<WORD>( ( bAlpha << 8 ) ) | 0x0FFF;
-			pDst16++;
+			bAlpha = ( BYTE ) ( ( pBitmapBits [ m_dwTexWidth*y + x ] & 0xff ) >> 4 );
+			if ( bAlpha > 0 )
+			{
+				*pDst16++ = ( WORD ) ( ( bAlpha << 12 ) | 0x0fff );
+			}
+			else
+			{
+				*pDst16++ = 0x0000;
+			}
 		}
-
 		pDstRow += d3dlr.Pitch;
 	}
-	m_pD3Dtex->UnlockRect ( 0 );
 
+	// Done updating texture, so clean up used objects
+	m_pTexture->UnlockRect ( 0 );
 	DeleteObject ( hbmBitmap );
 	DeleteDC ( hDC );
 	DeleteObject ( hFont );
 
-	m_isReady = true;
-
 	return S_OK;
 }
 
-HRESULT CD3DFont::Invalidate ( )
+
+
+
+//-----------------------------------------------------------------------------
+// Name: RestoreDeviceObjects()
+// Desc:
+//-----------------------------------------------------------------------------
+HRESULT CD3DFont::RestoreDeviceObjects ()
 {
-	CD3DState::Invalidate ( );
-	m_isReady = false;
-
-	SAFE_RELEASE ( m_pD3Dtex );
-	SAFE_RELEASE ( m_pD3Dbuf );
-
-	return S_OK;
-}
-
-void CD3DFont::CutString ( int iMaxWidth, std::string & sString )
-{
-	int iIndex = 0, iLength = sString.length ( );
-
-	for ( int iWidth = 0; iIndex < iLength && iWidth + 10 < iMaxWidth; )
-	{
-		char szCurrent [ 2 ] = { sString.c_str ( ) [ iIndex ], 0 };
-		iWidth += GetWidth ( szCurrent );
-		iIndex++;
-	}
-
-	if ( iIndex < iLength )
-		sString [ iIndex - 1 ] = '\0';
-}
-
-HRESULT CD3DFont::PrintShadow ( float x, float y,
-								DWORD colour, DWORD dwFlags, const char *szText, ... )
-{
-	char szBuffer [ 1024 ];
-	va_list ap;
-	va_start ( ap, szText );
-	vsnprintf ( szBuffer, 1024, szText, ap );
-	va_end ( ap );
-
 	HRESULT hr;
-	hr |= Print ( x + 1.f, y + 1.f, D3DCOLOR_RGBA ( 0, 0, 0, 255 ), szBuffer, 0 );
-	hr |= Print ( x, y, colour, szBuffer, 0 );
 
-	return hr;
+	// Create vertex buffer for the letters
+	int vertexSize = max ( sizeof ( FONT2DVERTEX ), sizeof ( FONT3DVERTEX ) );
+	if ( FAILED ( hr = m_pd3dDevice->CreateVertexBuffer ( MAX_NUM_VERTICES * vertexSize,
+		 D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC, 0,
+		 D3DPOOL_DEFAULT, &m_pVB, NULL ) ) )
+	{
+		return hr;
+	}
+
+	return S_OK;
 }
 
-HRESULT CD3DFont::Print ( float x, float y,
-						  DWORD colour, const char *szText, DWORD dwFlags )
+
+
+
+//-----------------------------------------------------------------------------
+// Name: InvalidateDeviceObjects()
+// Desc: Destroys all device-dependent objects
+//-----------------------------------------------------------------------------
+HRESULT CD3DFont::InvalidateDeviceObjects ()
 {
-	if ( !m_isReady )
-	{
+	SAFE_RELEASE ( m_pVB );
+
+	CD3DState::Invalidate ();
+
+	return S_OK;
+}
+
+
+
+
+//-----------------------------------------------------------------------------
+// Name: DeleteDeviceObjects()
+// Desc: Destroys all device-dependent objects
+//-----------------------------------------------------------------------------
+HRESULT CD3DFont::DeleteDeviceObjects ()
+{
+	SAFE_RELEASE ( m_pTexture );
+	m_pd3dDevice = NULL;
+
+	return S_OK;
+}
+
+
+
+
+//-----------------------------------------------------------------------------
+// Name: GetTextExtent()
+// Desc: Get the dimensions of a text string
+//-----------------------------------------------------------------------------
+HRESULT CD3DFont::GetTextExtent ( const CHAR* strText, SIZE* pSize )
+{
+	if ( NULL == strText || NULL == pSize )
 		return E_FAIL;
-	}
 
-	int strWidth = GetWidth ( szText );
+	FLOAT fRowWidth = 0.0f;
+	FLOAT fRowHeight = ( m_fTexCoords [ 0 ] [ 3 ] - m_fTexCoords [ 0 ] [ 1 ] )*m_dwTexHeight;
+	FLOAT fWidth = 0.0f;
+	FLOAT fHeight = fRowHeight;
 
-	if ( dwFlags & FT_CENTER )
-		x -= strWidth / 2.0f;
-
-	if ( dwFlags & FT_VCENTER )
-		y -= GetHeight ( ) / 2;
-
-	x -= static_cast< float >( m_chrSpacing );
-
-	if ( FAILED ( CD3DState::BeginState ( ) ) )
+	while ( *strText )
 	{
-		return E_FAIL;
-	}
+		CHAR c = *strText++;
 
-	m_pd3dDevice->SetFVF ( D3DFVF_BITMAPFONT );
-	m_pd3dDevice->SetTexture ( 0, m_pD3Dtex );
-	m_pd3dDevice->SetStreamSource ( 0, m_pD3Dbuf, 0, sizeof ( FONTVERTEX ) );
-
-	if ( *szText != '\0' )
-	{
-		UINT usedTriangles = 0;
-		FONTVERTEX *pVertex;
-
-		if ( FAILED ( m_pD3Dbuf->Lock ( 0, 0, reinterpret_cast< void** >( &pVertex ), D3DLOCK_DISCARD ) ) )
+		if ( c == '{' )
 		{
-			return E_FAIL;
+			std::vector<char> _costumColor;
+			while ( *strText != '}' )
+			{
+				char ch = toupper ( *strText );
+				bool numeric = ( ch >= '0' && ch <= '9' ) || ( ch >= 'A' && ch <= 'F' );
+				if ( numeric )
+				{
+					_costumColor.push_back ( ch );
+				}
+				strText++;
+			}
+			c = *strText++;
+			continue;
 		}
 
-		int iLen = static_cast<int>( strlen ( szText ) );
-		for ( int i = 0; i < iLen; i++ )
+		if ( c ==  '\n' || 
+			 fRowWidth >= m_fWidth )
 		{
-			int c = ( szText [ i ] & 0xFF ) - 32;
+			fRowWidth = 0.0f;
+			fHeight += fRowHeight;
+		}
 
-			float tx1 = m_fTexCoords [ c ] [ 0 ];
-			float tx2 = m_fTexCoords [ c ] [ 2 ];
-			float ty1 = m_fTexCoords [ c ] [ 1 ];
-			float ty2 = m_fTexCoords [ c ] [ 3 ];
+		if ( ( c - 32 ) < 0 || ( c - 32 ) >= 128 - 32 )
+			continue;
 
-			float w = ( tx2 - tx1 ) * m_texWidth;
-			float h = ( ty2 - ty1 ) * m_texHeight;
+		FLOAT tx1 = m_fTexCoords [ c - 32 ] [ 0 ];
+		FLOAT tx2 = m_fTexCoords [ c - 32 ] [ 2 ];
 
-			*pVertex++ = InitFont2DVertex ( x - 0.5f, y - 0.5f, colour, tx1, ty1 ); //topleft
-			*pVertex++ = InitFont2DVertex ( x + w - 0.5f, y - 0.5f, colour, tx2, ty1 ); //topright
-			*pVertex++ = InitFont2DVertex ( x - 0.5f, y + h - 0.5f, colour, tx1, ty2 ); //bottomleft
+		fRowWidth += ( tx2 - tx1 )*m_dwTexWidth - 2 * m_dwSpacing;
 
-			*pVertex++ = InitFont2DVertex ( x + w - 0.5f, y - 0.5f, colour, tx2, ty1 ); //topright
-			*pVertex++ = InitFont2DVertex ( x + w - 0.5f, y + h - 0.5f, colour, tx2, ty2 ); //bottomright
-			*pVertex++ = InitFont2DVertex ( x - 0.5f, y + h - 0.5f, colour, tx1, ty2 ); //bottomleft
+		if ( fRowWidth > fWidth )
+			fWidth = fRowWidth;
+	}
 
-			x += w - ( m_chrSpacing * 2 );
+	pSize->cx = ( int ) fWidth;
+	pSize->cy = ( int ) fHeight;
 
-			usedTriangles += 2;
-			if ( usedTriangles >= m_maxTriangles )
+	return S_OK;
+}
+
+
+
+
+//-----------------------------------------------------------------------------
+// Name: DrawText()
+// Desc: Draws 2D text. Note that sx and sy are in pixels
+//-----------------------------------------------------------------------------
+HRESULT CD3DFont::DrawText ( FLOAT sx, FLOAT sy, DWORD dwColor,
+							 const CHAR* strText, DWORD dwFlags )
+{
+	if ( m_pd3dDevice == NULL )
+		return E_FAIL;
+
+	// Setup renderstate
+	if(FAILED(CD3DState::BeginState ()))
+		return E_FAIL;
+
+	m_pd3dDevice->SetFVF ( D3DFVF_FONT2DVERTEX );
+	m_pd3dDevice->SetPixelShader ( NULL );
+	m_pd3dDevice->SetStreamSource ( 0, m_pVB, 0, sizeof ( FONT2DVERTEX ) );
+
+	// Set filter states
+	if ( dwFlags & D3DFONT_FILTERED )
+	{
+		m_pd3dDevice->SetSamplerState ( 0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR );
+		m_pd3dDevice->SetSamplerState ( 0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR );
+	}
+
+	// Center the text block in the viewport
+	if ( dwFlags & D3DFONT_CENTERED_X )
+	{
+		SIZE pSize;
+		GetTextExtent ( strText, &pSize );
+		sx -= ( FLOAT ) pSize.cx / 2.0f;
+	}
+	if ( dwFlags & D3DFONT_CENTERED_Y )
+	{
+		SIZE sz;
+		GetTextExtent ( strText, &sz );
+		sy -= ( FLOAT ) sz.cy / 2.0f;
+	}
+
+	// Adjust for character spacing
+	sx -= m_dwSpacing;
+	FLOAT fStartX = sx;
+
+	// Fill vertex buffer
+	FONT2DVERTEX* pVertices = NULL;
+	DWORD         dwNumTriangles = 0;
+	m_pVB->Lock ( 0, 0, ( void** ) &pVertices, D3DLOCK_DISCARD );
+
+	int len = strlen ( strText );
+	DWORD strStart = ( DWORD ) strText;
+	DWORD dwCustomColor = dwColor;
+
+	while ( *strText )
+	{
+		CHAR c = *strText++;
+		DWORD strCur = ( DWORD ) strText;
+
+		if ( c == '{' )
+		{
+			std::vector<char> _costumColor;
+			while ( *strText != '}' )
 			{
-				break;
+				char ch = toupper ( *strText );
+				bool numeric = ( ch >= '0' && ch <= '9' ) || ( ch >= 'A' && ch <= 'F' );
+				if ( numeric )
+				{
+					_costumColor.push_back ( ch );
+				}
+				strText++;
+			}
+			sscanf_s ( _costumColor.data (), "%X", &dwCustomColor );
+			dwCustomColor |= ( dwColor >> 24 ) << 24;
+			c = *strText++;
+			continue;
+		}
+
+		if ( c == '\n' || 
+			 sx >= m_fWidth )
+		{
+			sx = fStartX;
+			sy += ( m_fTexCoords [ 0 ] [ 3 ] - m_fTexCoords [ 0 ] [ 1 ] )*m_dwTexHeight;
+		}
+
+		if ( ( c - 32 ) < 0 || ( c - 32 ) >= 128 - 32 )
+			continue;
+
+		FLOAT tx1 = m_fTexCoords [ c - 32 ] [ 0 ];
+		FLOAT ty1 = m_fTexCoords [ c - 32 ] [ 1 ];
+		FLOAT tx2 = m_fTexCoords [ c - 32 ] [ 2 ];
+		FLOAT ty2 = m_fTexCoords [ c - 32 ] [ 3 ];
+
+		FLOAT w = ( tx2 - tx1 ) *  m_dwTexWidth / m_fTextScale;
+		FLOAT h = ( ty2 - ty1 ) * m_dwTexHeight / m_fTextScale;
+
+		if ( c != ' ' )
+		{
+			if ( dwFlags & D3DFONT_COLORTABLE )
+				dwColor = dwCustomColor;
+
+			if ( dwFlags & D3DFONT_BORDER )
+			{
+				float _x = sx, _y = sy;
+				float addy = 0.5f;
+				float fHeight = h, fWidth = w;
+
+				DWORD dwShadow = 0xFF000000;
+
+				_x = sx - addy, _y = sy - addy;
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x, _y + fHeight, 0.0f, 0.0f ), dwShadow, tx1, ty2 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x, _y, 0.0f, 0.0f ), dwShadow, tx1, ty1 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x + fWidth, _y + fHeight, 0.0f, 0.0f ), dwShadow, tx2, ty2 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x + fWidth, _y, 0.0f, 0.0f ), dwShadow, tx2, ty1 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x + fWidth, _y + fHeight, 0.0f, 0.0f ), dwShadow, tx2, ty2 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x, _y, 0.0f, 0.0f ), dwShadow, tx1, ty1 );
+
+
+				_x = sx + addy, _y = sy + addy;
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x, _y + fHeight, 0.0f, 0.0f ), dwShadow, tx1, ty2 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x, _y, 0.0f, 0.0f ), dwShadow, tx1, ty1 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x + fWidth, _y + fHeight, 0.0f, 0.0f ), dwShadow, tx2, ty2 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x + fWidth, _y, 0.0f, 0.0f ), dwShadow, tx2, ty1 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x + fWidth, _y + fHeight, 0.0f, 0.0f ), dwShadow, tx2, ty2 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x, _y, 0.0f, 0.0f ), dwShadow, tx1, ty1 );
+
+				_x = sx - addy, _y = sy + addy;
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x, _y + fHeight, 0.0f, 0.0f ), dwShadow, tx1, ty2 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x, _y, 0.0f, 0.0f ), dwShadow, tx1, ty1 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x + fWidth, _y + fHeight, 0.0f, 0.0f ), dwShadow, tx2, ty2 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x + fWidth, _y, 0.0f, 0.0f ), dwShadow, tx2, ty1 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x + fWidth, _y + fHeight, 0.0f, 0.0f ), dwShadow, tx2, ty2 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x, _y, 0.0f, 0.0f ), dwShadow, tx1, ty1 );
+
+				_x = sx + addy, _y = sy - addy;
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x, _y + fHeight, 0.0f, 0.0f ), dwShadow, tx1, ty2 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x, _y, 0.0f, 0.0f ), dwShadow, tx1, ty1 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x + fWidth, _y + fHeight, 0.0f, 0.0f ), dwShadow, tx2, ty2 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x + fWidth, _y, 0.0f, 0.0f ), dwShadow, tx2, ty1 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x + fWidth, _y + fHeight, 0.0f, 0.0f ), dwShadow, tx2, ty2 );
+				*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( _x, _y, 0.0f, 0.0f ), dwShadow, tx1, ty1 );
+
+
+				dwNumTriangles += 8;
+			}
+			*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( sx + 0 - 0.5f, sy + h - 0.5f, 0.9f, 1.0f ), dwColor, tx1, ty2 );
+			*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( sx + 0 - 0.5f, sy + 0 - 0.5f, 0.9f, 1.0f ), dwColor, tx1, ty1 );
+			*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( sx + w - 0.5f, sy + h - 0.5f, 0.9f, 1.0f ), dwColor, tx2, ty2 );
+			*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( sx + w - 0.5f, sy + 0 - 0.5f, 0.9f, 1.0f ), dwColor, tx2, ty1 );
+			*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( sx + w - 0.5f, sy + h - 0.5f, 0.9f, 1.0f ), dwColor, tx2, ty2 );
+			*pVertices++ = InitFont2DVertex ( D3DXVECTOR4 ( sx + 0 - 0.5f, sy + 0 - 0.5f, 0.9f, 1.0f ), dwColor, tx1, ty1 );
+			dwNumTriangles += 2;
+
+			if ( dwNumTriangles * 3 > ( MAX_NUM_VERTICES - 6 ) )
+			{
+				// Unlock, render, and relock the vertex buffer
+				m_pVB->Unlock ();
+				m_pd3dDevice->DrawPrimitive ( D3DPT_TRIANGLELIST, 0, dwNumTriangles );
+				pVertices = NULL;
+				m_pVB->Lock ( 0, 0, ( void** ) &pVertices, D3DLOCK_DISCARD );
+				dwNumTriangles = 0L;
 			}
 		}
 
-		if ( usedTriangles > 0 )
-		{
-			m_pD3Dbuf->Unlock ( );
-			m_pd3dDevice->DrawPrimitive ( D3DPT_TRIANGLELIST, 0, usedTriangles );
-		}
+		sx += w - ( 2 * m_dwSpacing );
 	}
 
-	CD3DState::EndState ( );
+	// Unlock and render the vertex buffer
+	m_pVB->Unlock ();
+	if ( dwNumTriangles > 0 )
+		m_pd3dDevice->DrawPrimitive ( D3DPT_TRIANGLELIST, 0, dwNumTriangles );
+
+	// Restore the modified renderstates
+	CD3DState::EndState ();
 
 	return S_OK;
-}
-
-int CD3DFont::GetWidth ( const char *szText )
-{
-	float fLen = 0.0f;
-	for ( int i = strlen ( szText ) - 1; i >= 0; i-- )
-	{
-		int iChar = ( szText [ i ] & 0xFF ) - 32;
-		if ( iChar >= 0 && iChar < 255 )
-			fLen += ( ( m_fTexCoords [ iChar ] [ 2 ] - m_fTexCoords [ iChar ] [ 0 ] ) * m_texWidth ) - m_chrSpacing * 2;
-	}
-
-	return static_cast< int >( ceilf ( fLen ) );
-}
-
-int CD3DFont::GetHeight ( void )
-{
-	if ( m_fChrHeight <= 0.f )
-		Print ( 0, 0, 0, "Y", 0L );
-
-	return static_cast< int >( m_fChrHeight );
 }
 
 CD3DTexture::CD3DTexture ( IDirect3DDevice9* pd3dDevice, const char *szPath )

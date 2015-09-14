@@ -3,16 +3,19 @@
 #include <tchar.h>
 #include "define.h"
 
-#define FCR_NONE	0x0
-#define FCR_BOLD 	0x1
-#define FCR_ITALICS 0x2
 
-#define FT_NONE		0x0
-#define FT_CENTER	0x1
-#define FT_BORDER	0x2
-#define FT_VCENTER	0x4
-#define FT_SINGLELINE 0x8
+// Font creation flags
+#define D3DFONT_BOLD        0x0001
+#define D3DFONT_ITALIC      0x0002
+#define D3DFONT_ZENABLE     0x0004
 
+// Font rendering flags
+#define D3DFONT_CENTERED_X  0x0001
+#define D3DFONT_CENTERED_Y  0x0002
+#define D3DFONT_TWOSIDED    0x0004
+#define D3DFONT_FILTERED    0x0008
+#define D3DFONT_BORDER		0x0010
+#define D3DFONT_COLORTABLE	0x0020
 //Vertex Types
 struct FONTVERTEX
 {
@@ -73,7 +76,6 @@ protected:
 	void Initialize ( IDirect3DDevice9 *pDevice );
 	void Invalidate ( void );
 
-public:
 	HRESULT BeginState ( void );
 	HRESULT EndState ( void );
 
@@ -118,42 +120,48 @@ private:
 	bool					m_canRender;
 };
 
+//-----------------------------------------------------------------------------
+// Name: class CD3DFont
+// Desc: Texture-based font class for doing text in a 3D scene.
+//-----------------------------------------------------------------------------
 class CD3DFont : public CD3DState
 {
+	CHAR   m_strFontName [ 80 ];            // Font properties
+	DWORD   m_dwFontHeight;
+	DWORD   m_dwFontFlags;
+
+
+	LPDIRECT3DTEXTURE9      m_pTexture;   // The d3d texture for this font
+	LPDIRECT3DVERTEXBUFFER9 m_pVB;        // VertexBuffer for rendering text
+	DWORD   m_dwTexWidth;                 // Texture dimensions
+	DWORD   m_dwTexHeight;
+	FLOAT   m_fTextScale;
+	FLOAT   m_fTexCoords [ 128 - 32 ] [ 4 ];
+	DWORD   m_dwSpacing;                  // Character pixel spacing per side
+
+										  // Stateblocks for setting and restoring render states
+
+	float m_fWidth;
 public:
-	CD3DFont ( const char *szFontName, int fontHeight, DWORD dwCreateFlags = 0 );
-	~CD3DFont ( );
+	// 2D and 3D text drawing functions
+	HRESULT DrawText ( FLOAT x, FLOAT y, DWORD dwColor, const CHAR* strText, DWORD dwFlags = 0L );
 
-	HRESULT Initialize ( IDirect3DDevice9 *pD3Ddev );
-	HRESULT Invalidate ( );
+	// Function to get extent of text
+	HRESULT GetTextExtent ( const CHAR* strText, SIZE* pSize );
 
-	HRESULT Print ( float x, float y, DWORD colour, const char *szText, DWORD dwFlags = 0);
-	HRESULT PrintShadow ( float x, float y, DWORD colour, DWORD dwFlags, const char *szText,... );
+	// Initializing and destroying device-dependent objects
+	HRESULT InitDeviceObjects ( LPDIRECT3DDEVICE9 pd3dDevice );
+	HRESULT RestoreDeviceObjects ();
+	HRESULT InvalidateDeviceObjects ();
+	HRESULT DeleteDeviceObjects ();
 
-	void CutString ( int iWidth, std::string &sString );
+	void SetWidth ( float fWidth ) { m_fWidth = fWidth };
 
-	int GetWidth ( const char*string );
-	int GetHeight ( void );
-
-private:
-	char 	m_szFontName [ 31 + 1 ];
-	int  	m_fontHeight;
-	DWORD 	m_dwCreateFlags;
-
-	bool 	m_isReady;
-	bool	m_statesOK;
-
-	IDirect3DTexture9 		*m_pD3Dtex;
-	IDirect3DVertexBuffer9 	*m_pD3Dbuf;
-
-	DWORD 	m_maxTriangles;
-
-	int 	m_texWidth, m_texHeight;
-	int 	m_chrSpacing;
-	float 	m_fTexCoords [ 256 ] [ 4 ];
-	float 	m_fChrHeight;
+	LPDIRECT3DDEVICE9 getDevice () const { return m_pd3dDevice; }
+	// Constructor / destructor
+	CD3DFont ( const CHAR* strFontName, DWORD dwHeight, DWORD dwFlags = 0L );
+	~CD3DFont ();
 };
-
 class CD3DTexture
 {
 public:

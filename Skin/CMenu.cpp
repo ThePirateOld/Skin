@@ -70,89 +70,81 @@ LPD3DXFONT LoadD3Font ( IDirect3DDevice9 *pDevice )
 
  struct s
  {
-	  char sKey;
+	  char sKey[4];
 	  long color;
  }cs [] =
- { {'red',Red }, { 'blu',Blue }, { 'pur',Purple }, { 'whi',White },{ 'mag',Magenta }, { 'cya',Cyan }, { 'ora',Orange }, { 'pin',Pink },
- { 'gol',Gold }, { 'gry',Grey } ,{ 'bla',Black }, { 'yel',Yellow } , { 'grn',Green }
+ { {"red",Red }, { "blu",Blue }, { "pur",Purple }, { "whi",White },{ "mag",Magenta }, { "cya",Cyan }, { "ora",Orange }, { "pin",Pink },
+ { "gol",Gold }, { "gry",Grey } ,{ "bla",Black }, { "yel",Yellow } , { "grn",Green }
  };
 
- enum EColor
- {
-	 R = 0xFF0000,
-	 B = 0x0000FF,
- };
 
- long GetColor ( char c )
+ long GetColor ( const char* key )
  {
 	 for ( size_t i = 0; i < sizeof(cs); i++ )
 	 {
-		 if ( cs [ i ].sKey == c )
+		 if ( !strncmp ( cs [ i ].sKey, key, 3 ) )
 			 return cs [ i ].color;
 	 }
+
+	 return 0;
  }
 
-void DrawFont ( LPD3DXFONT pFont, RECT &r, DWORD dwFormat, D3DCOLOR d3dColor, CHAR *szStr )
-{
-	g_pSprite->Begin ( D3DXSPRITE_ALPHABLEND );
-	g_pSprite->Flush ();
+ void DrawFont ( LPD3DXFONT pFont, RECT &r, DWORD dwFormat, D3DCOLOR d3dColor, CHAR *szStr )
+ {
+	 g_pSprite->Begin ( D3DXSPRITE_ALPHABLEND );
+	 g_pSprite->Flush ();
 
-	DWORD dwColor = d3dColor;
+	 DWORD dwColor = d3dColor;
 
-	int iTagCount= 0;
-	std::map<int, long> color; 
-	std::string str ( szStr );
-	RECT rctA =r ;
+	 int iTagCount = 0;
+	 std::map<int, long> color;
+	 std::string str ( szStr );
+	 RECT rctA = r;
+	 long inc = 0;
+	 for ( size_t i = 0; i < str.size (); i++ )
+	 {
+		 if ( str [ i ] == '>' )
+		 {
+			 if ( str [ i + 4 ] == '<' )
+			 {
+				 auto pszStr = str.c_str ();
+				 color [ iTagCount ] = GetColor ( &pszStr [ i + 1 ] );
+				 iTagCount++;
+				 str.erase ( i, 5 );
+			 }
+		 }
+		
+		// if ( !( dwFormat & DT_CALCRECT ) )
+		// {
+			 if ( iTagCount )
+				 dwColor = color [ iTagCount - 1 ];
 
-	int inc = 0;
-	for ( size_t i = 0; i < str.size (); i++ )
-	{
-		if ( str [ i ] == '>' )
-		{
-			if ( str [ i + 2 ] == '<' )
-			{
-				color [ iTagCount ] = GetColor ( str [ i + 1 ] );
-				iTagCount++;
-				str.erase ( i, 3 );
+			 HDC dc = pFont->GetDC ();
 
-			}
-		}
-	
+			 SIZE size;
+			 GetTextExtentPoint32A ( dc, &str [ i ], 1, &size );
 
-		if ( dwFormat & DT_CALCRECT )
-		{
-			pFont->DrawTextA ( NULL, str.c_str (), -1, &r, dwFormat, NULL );
-		}
-		else
-		{
-			if ( iTagCount )
-				dwColor = color [ iTagCount - 1 ];
+			 auto pszStr = str.c_str ();
+			 pFont->DrawTextA ( g_pSprite, &pszStr[i], -1, &r, dwFormat, dwColor );
+			 r.left = r.left + size.cx; // offset for next character.
 
-			HDC dc = pFont->GetDC ();
+			 if ( inc > rctA.right - rctA.left - 15 )
+			 {
+				 inc = 0;
+				 r.left = rctA.left;
+				 r.top += size.cy;
+				 r.bottom = r.top + size.cy;
+			 }
+			 else
+				 inc += size.cx;
+		// }
+	 }
 
-			SIZE size;
-			GetTextExtentPoint32A ( dc, &str [ i ], 1, &size );
+	// if ( dwFormat & DT_CALCRECT )
+	//	 pFont->DrawTextA ( NULL, str.c_str (), -1, &r, dwFormat, NULL );
 
-			char sz [ 128 ];
-			sprintf ( sz, "%c", str [ i ] );
-
-			pFont->DrawTextA ( g_pSprite, sz, -1, &r, dwFormat, dwColor );
-			r.left = r.left + size.cx; // offset for next character.
-
-			if ( inc > rctA.right - rctA.left - 20 )
-			{
-				inc = 0;
-				r.left = rctA.left;
-				r.top += size.cy;
-				r.bottom = r.top + size.cy;
-			}
-			else							
-				inc += size.cx;		
-		}
-	}
-	
-	g_pSprite->End ();
-}
+	 g_pSprite->End ();
+ }
 
 CMenuManager::CMenuManager ( void ) :
 	m_pDevice ( NULL ),

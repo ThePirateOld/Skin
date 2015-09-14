@@ -796,7 +796,7 @@ namespace CallbackHandlers
 				{
 					SetClothesByName ( ClothesInfo [ iRow  ].szTexture, ClothesInfo [ iRow ].szModel, ClothesInfo [ iRow ].uiBodyPart );
 					RebuildChar ();
-					pMenu->AddTextBox ( 2000, "Item >r<asd>b<sssssssa as asdsadasdadasdsadasdasdasd asd asd asdds ss asd asd s sd" );
+					pMenu->AddTextBox ( 2000, "Item >red<%s>whi< equipped lklkllk", ClothesInfo [ iRow ].szName );
 				}
 			}
 
